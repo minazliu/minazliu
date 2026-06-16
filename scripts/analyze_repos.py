@@ -317,6 +317,7 @@ def fetch_push_details(
 
     return "Repository updated"
 
+
 def fetch_activity(s: requests.Session) -> list[dict[str, str]]:
     response = s.get(
         f"{API}/users/{USERNAME}/events/public",
@@ -342,16 +343,57 @@ def fetch_activity(s: requests.Session) -> list[dict[str, str]]:
         dedupe_key = ""
 
         if event_type == "PushEvent":
-            # Keep only the newest push for each repository.
+            # Keep only the newest push summary for each repository.
             dedupe_key = f"push:{repo}"
 
+            if dedupe_key in seen_keys:
+                continue
+
             action = f"Updated {repo}"
-            detail = fetch_push_details(
-                session=s,
-                repo=repo,
-                payload=payload,
-                created_at=created_at,
+
+            since = datetime.now(timezone.utc) - timedelta(days=30)
+
+            commits_response = s.get(
+                f"{API}/repos/{USERNAME}/{repo}/commits",
+                params={
+                    "author": USERNAME,
+                    "since": since.isoformat(),
+                    "per_page": 100,
+                },
+                timeout=30,
             )
+
+            recent_commits = (
+                commits_response.json()
+                if commits_response.status_code == 200
+                else []
+            )
+
+            commit_count = len(recent_commits)
+
+            latest_message = ""
+            if recent_commits:
+                latest_message = (
+                    recent_commits[0]
+                    .get("commit", {})
+                    .get("message", "")
+                    .splitlines()[0]
+                    .strip()
+                )
+
+            if commit_count > 0 and latest_message:
+                detail = (
+                    f"{commit_count} commit"
+                    f"{'s' if commit_count != 1 else ''} in the last 30 days"
+                    f" · Latest: {latest_message}"
+                )
+            elif commit_count > 0:
+                detail = (
+                    f"{commit_count} commit"
+                    f"{'s' if commit_count != 1 else ''} in the last 30 days"
+                )
+            else:
+                detail = "Repository updated"
 
         elif event_type == "PullRequestEvent":
             pull_request = payload.get("pull_request", {})
@@ -379,13 +421,11 @@ def fetch_activity(s: requests.Session) -> list[dict[str, str]]:
 
         elif event_type == "ReleaseEvent":
             release = payload.get("release", {})
+            tag = release.get("tag_name", "")
 
-            dedupe_key = (
-                f"release:{repo}:"
-                f"{release.get('tag_name', event.get('id', ''))}"
-            )
+            dedupe_key = f"release:{repo}:{tag or event.get('id', '')}"
 
-            action = f"Released {release.get('tag_name', '')} in {repo}"
+            action = f"Released {tag} in {repo}".strip()
             detail = release.get("name") or "New release published"
 
         elif event_type == "CreateEvent":
@@ -409,6 +449,97 @@ def fetch_activity(s: requests.Session) -> list[dict[str, str]]:
 
         else:
             continue
+
+        if dedupe_key in seen_keys:
+            continue
+
+        seen_keys.add(dedupe_key)
+
+        items.append(
+            {
+                "action": action,
+                "detail": detail[:110],
+                "created_at": created_at,
+            }
+        )
+
+        if len(items) >= 5:
+            break
+
+    return items
+
+
+    response = s.get(
+        f"{API}/users/{USERNAME}/events/public",
+        params={"per_page": 100},
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    items: list[dict[str, str]] = []
+    seen_keys: set[str] = set()
+
+    for event in response.json():
+        event_type = event.get("type", "")
+        repo = event.get("repo", {}).get("name", "").replace(
+            f"{USERNAME}/",
+            "",
+        )
+        payload = event.get("payload", {})
+        created_at = event.get("created_at", "")
+
+        action = ""
+        detail = ""
+        dedupe_key = ""
+
+        if event_type == "PushEvent":
+            dedupe_key = f"push:{repo}"
+
+            action = f"Updated {repo}"
+
+            # Count authored commits in this repository during the last 30 days.
+            since = datetime.now(timezone.utc) - timedelta(days=30)
+
+            commits_response = s.get(
+                f"{API}/repos/{USERNAME}/{repo}/commits",
+                params={
+                    "author": USERNAME,
+                    "since": since.isoformat(),
+                    "per_page": 100,
+                },
+                timeout=30,
+            )
+
+            if commits_response.status_code == 200:
+                recent_commits = commits_response.json()
+            else:
+                recent_commits = []
+
+            commit_count = len(recent_commits)
+
+            latest_message = ""
+            if recent_commits:
+                latest_message = (
+                    recent_commits[0]
+                    .get("commit", {})
+                    .get("message", "")
+                    .splitlines()[0]
+                    .strip()
+                )
+
+            if commit_count > 0 and latest_message:
+                detail = (
+                    f"{commit_count} commit"
+                    f"{'s' if commit_count != 1 else ''} in the last 30 days"
+                    f" · Latest: {latest_message}"
+                )
+            elif commit_count > 0:
+                detail = (
+                    f"{commit_count} commit"
+                    f"{'s' if commit_count != 1 else ''} in the last 30 days"
+                )
+            else:
+                detail = "Repository updated"
 
         if dedupe_key in seen_keys:
             continue
