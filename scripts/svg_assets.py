@@ -411,9 +411,18 @@ def generate_activity(data, theme):
     uid = f"activity-{theme.name}"
     items = data.get("activity", [])[:5]
 
-    # Dynamically size the card based on the number of activities.
     item_count = max(len(items), 1)
-    card_height = 100 + item_count * 62
+
+    header_height = 68
+    row_height = 62
+    bottom_padding = 28
+
+    card_height = (
+        header_height
+        + item_count * row_height
+        + bottom_padding
+    )
+
     svg_height = card_height + 16
 
     body = [

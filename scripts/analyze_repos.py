@@ -119,6 +119,108 @@ def fetch_contributions(s: requests.Session) -> dict[str, Any]:
         "longest_streak": longest,
     }
 
+def fetch_push_details(
+    session: requests.Session,
+    repo: str,
+    payload: dict[str, Any],
+    created_at: str,
+) -> str:
+    """Retrieve commit count and messages for a PushEvent."""
+
+    before = payload.get("before")
+    head = payload.get("head")
+
+    zero_sha = "0" * 40
+
+    # Best option: compare the before and head commits.
+    if (
+        before
+        and head
+        and before != zero_sha
+        and head != zero_sha
+        and before != head
+    ):
+        response = session.get(
+            f"{API}/repos/{USERNAME}/{repo}/compare/{before}...{head}",
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+            comparison = response.json()
+            commits = comparison.get("commits", [])
+
+            if commits:
+                count = len(commits)
+
+                messages = []
+                for commit in commits[:2]:
+                    message = (
+                        commit.get("commit", {})
+                        .get("message", "")
+                        .splitlines()[0]
+                        .strip()
+                    )
+
+                    if message:
+                        messages.append(message)
+
+                detail = f"{count} commit{'s' if count != 1 else ''}"
+
+                if messages:
+                    detail += f" · {'; '.join(messages)}"
+
+                return detail
+
+    # Fallback: search for commits close to the event timestamp.
+    try:
+        event_time = datetime.fromisoformat(
+            created_at.replace("Z", "+00:00")
+        )
+
+        since = event_time - timedelta(minutes=10)
+        until = event_time + timedelta(minutes=10)
+
+        response = session.get(
+            f"{API}/repos/{USERNAME}/{repo}/commits",
+            params={
+                "author": USERNAME,
+                "since": since.isoformat(),
+                "until": until.isoformat(),
+                "per_page": 10,
+            },
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+            commits = response.json()
+
+            if commits:
+                count = len(commits)
+
+                messages = []
+                for commit in commits[:2]:
+                    message = (
+                        commit.get("commit", {})
+                        .get("message", "")
+                        .splitlines()[0]
+                        .strip()
+                    )
+
+                    if message:
+                        messages.append(message)
+
+                detail = f"{count} commit{'s' if count != 1 else ''}"
+
+                if messages:
+                    detail += f" · {'; '.join(messages)}"
+
+                return detail
+
+    except (ValueError, TypeError):
+        pass
+
+    return "Repository updated"
+
 def fetch_activity(s: requests.Session) -> list[dict[str, str]]:
     response = s.get(
         f"{API}/users/{USERNAME}/events/public",
@@ -144,19 +246,16 @@ def fetch_activity(s: requests.Session) -> list[dict[str, str]]:
         dedupe_key = ""
 
         if event_type == "PushEvent":
-            # Keep only the most recent push for each repository.
+            # Keep only the newest push for each repository.
             dedupe_key = f"push:{repo}"
 
-            count = payload.get("distinct_size")
-            if count is None:
-                count = payload.get("size")
-
             action = f"Updated {repo}"
-
-            if isinstance(count, int) and count > 0:
-                detail = f"{count} commit{'s' if count != 1 else ''} pushed"
-            else:
-                detail = "Repository updated"
+            detail = fetch_push_details(
+                session=s,
+                repo=repo,
+                payload=payload,
+                created_at=created_at,
+            )
 
         elif event_type == "PullRequestEvent":
             pull_request = payload.get("pull_request", {})
