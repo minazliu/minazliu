@@ -22,10 +22,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import matplotlib.pyplot as plt
 import requests
-from matplotlib.patches import FancyBboxPatch
-from matplotlib import rcParams
+
+from svg_assets import generate_all_assets
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -132,30 +131,7 @@ PROJECT_CATEGORIES: dict[str, list[str]] = {
 
 CATEGORY_PRIORITY = CATEGORY_ORDER  # tie-break order (first = highest priority)
 
-# Dashboard styling — SaaS analytics card aesthetic for GitHub README (~600px).
-FONT_FAMILY = "DejaVu Sans"
-ACCENT = "#6366F1"
-ACCENT_LIGHT = "#818CF8"
-CARD_BG = "#1c2128"
-CARD_BORDER = "#373e47"
-TEXT_PRIMARY = "#c9d1d9"
-TEXT_SECONDARY = "#8b949e"
-TEXT_MUTED = "#6e7681"
-TRACK_BG = "#30363d"
-PROGRESS_BG = "#21262d"
-PORTFOLIO_EXAMPLES_URL = "https://www.datascienceportfol.io/mina"
-
-# Professional impact metrics (not derived from GitHub API).
-IMPACT_METRICS: list[tuple[str, str, str]] = [
-    ("62%", "Backlog reduction", "High-priority engineering backlog"),
-    ("3×", "Faster P0 response", "Incident escalation performance"),
-    ("15+", "Engineering teams", "Workflows supported"),
-    ("240+", "Execution risks", "High-priority risks surfaced"),
-    ("28K", "Daily CI jobs", "Pipeline operations supported"),
-    ("8%", "Unknown root cause", "Down from ~54–60%"),
-]
-
-# Technology capability groups — edit keywords to tune technology_mix.svg.
+# Technology capability groups — edit keywords to tune portfolio insights.
 TECHNOLOGY_CAPABILITIES: dict[str, list[str]] = {
     "AI and agents": [
         "agent", "agentic", "llm", "ai", "machine learning", "ml",
@@ -647,6 +623,54 @@ def classify_capability(
     return category_map.get(category, "Developer tooling")
 
 
+def build_monthly_activity(repos: list[dict[str, Any]], months: int = 12) -> list[dict[str, Any]]:
+    """Count repositories last pushed in each of the past N months."""
+    now = datetime.now(timezone.utc)
+    buckets: list[dict[str, Any]] = []
+
+    for offset in range(months - 1, -1, -1):
+        year = now.year
+        month = now.month - offset
+        while month <= 0:
+            month += 12
+            year -= 1
+        label = datetime(year, month, 1, tzinfo=timezone.utc).strftime("%b %y")
+        buckets.append({"label": label, "year": year, "month": month, "count": 0})
+
+    for repo in repos:
+        pushed_at = repo.get("pushed_at")
+        if not pushed_at:
+            continue
+        try:
+            pushed = datetime.fromisoformat(pushed_at.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            continue
+        for bucket in buckets:
+            if pushed.year == bucket["year"] and pushed.month == bucket["month"]:
+                bucket["count"] += 1
+                break
+
+    return [{"label": b["label"], "count": b["count"]} for b in buckets]
+
+
+def most_recently_updated(repos: list[dict[str, Any]]) -> dict[str, str]:
+    """Return the repository with the most recent push date."""
+    best: dict[str, Any] | None = None
+    for repo in repos:
+        pushed_at = repo.get("pushed_at")
+        if not pushed_at:
+            continue
+        if best is None or pushed_at > best.get("pushed_at", ""):
+            best = repo
+    if best is None:
+        return {"name": "N/A", "pushed_at": "", "url": ""}
+    return {
+        "name": best["name"],
+        "pushed_at": best.get("pushed_at", ""),
+        "url": best.get("url", ""),
+    }
+
+
 def top_n_with_other(
     counts: dict[str, int], order: list[str], max_items: int = MAX_CHART_CATEGORIES
 ) -> list[tuple[str, int]]:
@@ -727,6 +751,8 @@ def build_summary(repos: list[dict[str, Any]]) -> dict[str, Any]:
         "category_counts": category_counts,
         "capability_counts": capability_counts,
         "maturity_counts": maturity_counts,
+        "monthly_activity": build_monthly_activity(repos),
+        "most_recently_updated": most_recently_updated(repos),
         "top_languages": dict(
             sorted(language_bytes.items(), key=lambda x: x[1], reverse=True)
         ),
@@ -787,390 +813,14 @@ def analyze_repositories(session: requests.Session) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Dashboard SVG generation
+# Asset generation
 # ---------------------------------------------------------------------------
 
 
-def configure_dashboard_fonts() -> None:
-    """Apply modern sans-serif typography for dashboard SVGs."""
-    rcParams.update(
-        {
-            "font.family": "sans-serif",
-            "font.sans-serif": [FONT_FAMILY, "Inter", "Arial", "Helvetica", "sans-serif"],
-            "axes.unicode_minus": False,
-        }
-    )
-
-
-def draw_rounded_card(
-    ax: plt.Axes,
-    x: float,
-    y: float,
-    width: float,
-    height: float,
-    radius: float = 0.012,
-    facecolor: str = CARD_BG,
-    edgecolor: str = CARD_BORDER,
-    alpha: float = 0.96,
-) -> FancyBboxPatch:
-    """Draw a rounded dashboard card in axes coordinates."""
-    patch = FancyBboxPatch(
-        (x, y),
-        width,
-        height,
-        boxstyle=f"round,pad=0,rounding_size={radius}",
-        transform=ax.transAxes,
-        facecolor=facecolor,
-        edgecolor=edgecolor,
-        linewidth=1.0,
-        alpha=alpha,
-        clip_on=False,
-        zorder=1,
-    )
-    ax.add_patch(patch)
-    return patch
-
-
-def draw_progress_bar(
-    ax: plt.Axes,
-    y: float,
-    fraction: float,
-    bar_left: float = 0.28,
-    bar_width: float = 0.52,
-    bar_height: float = 0.018,
-    label: str = "",
-    value_label: str = "",
-) -> None:
-    """Draw a thin horizontal progress bar with direct labels."""
-    track = FancyBboxPatch(
-        (bar_left, y - bar_height / 2),
-        bar_width,
-        bar_height,
-        boxstyle="round,pad=0,rounding_size=0.004",
-        transform=ax.transAxes,
-        facecolor=TRACK_BG,
-        edgecolor="none",
-        zorder=2,
-    )
-    ax.add_patch(track)
-
-    fill_width = max(bar_width * min(max(fraction, 0.0), 1.0), 0.001)
-    fill = FancyBboxPatch(
-        (bar_left, y - bar_height / 2),
-        fill_width,
-        bar_height,
-        boxstyle="round,pad=0,rounding_size=0.004",
-        transform=ax.transAxes,
-        facecolor=ACCENT,
-        edgecolor="none",
-        zorder=3,
-    )
-    ax.add_patch(fill)
-
-    ax.text(
-        0.04,
-        y,
-        label,
-        transform=ax.transAxes,
-        ha="left",
-        va="center",
-        fontsize=10,
-        color=TEXT_PRIMARY,
-        zorder=4,
-    )
-    ax.text(
-        bar_left + bar_width + 0.02,
-        y,
-        value_label,
-        transform=ax.transAxes,
-        ha="left",
-        va="center",
-        fontsize=10,
-        color=TEXT_SECONDARY,
-        zorder=4,
-    )
-
-
-def new_dashboard_figure(width: float, height: float) -> tuple[plt.Figure, plt.Axes]:
-    """Create a transparent figure with a single axes, no chrome."""
-    configure_dashboard_fonts()
-    fig, ax = plt.subplots(figsize=(width, height))
-    fig.patch.set_alpha(0)
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.axis("off")
-    return fig, ax
-
-
-def save_dashboard(fig: plt.Figure, output_path: Path) -> None:
-    """Save dashboard SVG with transparent background."""
-    fig.savefig(output_path, format="svg", transparent=True, bbox_inches="tight", pad_inches=0.08)
-    plt.close(fig)
-    logger.info("Saved %s", output_path)
-
-
-def draw_portfolio_examples_footer(ax: plt.Axes) -> None:
-    """Add a clickable footer linking to the external project portfolio."""
-    footer = ax.text(
-        0.5,
-        0.015,
-        "Project examples → datascienceportfol.io/mina",
-        transform=ax.transAxes,
-        ha="center",
-        va="bottom",
-        fontsize=8,
-        color=ACCENT_LIGHT,
-        zorder=5,
-    )
-    footer.set_url(PORTFOLIO_EXAMPLES_URL)
-
-
-def chart_impact_summary(output_path: Path) -> None:
-    """Generate wide KPI card with selected professional impact metrics."""
-    fig, ax = new_dashboard_figure(10, 3.2)
-    draw_rounded_card(ax, 0.02, 0.06, 0.96, 0.88)
-
-    ax.text(
-        0.05,
-        0.82,
-        "Selected Professional Impact",
-        transform=ax.transAxes,
-        fontsize=14,
-        fontweight="bold",
-        color=TEXT_PRIMARY,
-        ha="left",
-        va="top",
-    )
-    ax.text(
-        0.05,
-        0.74,
-        "Representative program outcomes — not GitHub repository statistics",
-        transform=ax.transAxes,
-        fontsize=9,
-        color=TEXT_MUTED,
-        ha="left",
-        va="top",
-    )
-
-    cols = 3
-    rows = 2
-    card_w = 0.28
-    card_h = 0.24
-    start_x = 0.05
-    start_y = 0.58
-    x_gap = 0.03
-    y_gap = 0.04
-
-    for index, (value, title, subtitle) in enumerate(IMPACT_METRICS):
-        col = index % cols
-        row = index // cols
-        x = start_x + col * (card_w + x_gap)
-        y = start_y - row * (card_h + y_gap)
-
-        draw_rounded_card(
-            ax,
-            x,
-            y,
-            card_w,
-            card_h,
-            radius=0.008,
-            facecolor=PROGRESS_BG,
-            edgecolor=CARD_BORDER,
-            alpha=0.9,
-        )
-        ax.text(
-            x + 0.03,
-            y + card_h - 0.05,
-            value,
-            transform=ax.transAxes,
-            fontsize=18,
-            fontweight="bold",
-            color=ACCENT_LIGHT,
-            ha="left",
-            va="top",
-        )
-        ax.text(
-            x + 0.03,
-            y + card_h - 0.13,
-            title,
-            transform=ax.transAxes,
-            fontsize=10,
-            fontweight="bold",
-            color=TEXT_PRIMARY,
-            ha="left",
-            va="top",
-        )
-        ax.text(
-            x + 0.03,
-            y + 0.04,
-            subtitle,
-            transform=ax.transAxes,
-            fontsize=8,
-            color=TEXT_SECONDARY,
-            ha="left",
-            va="bottom",
-        )
-
-    save_dashboard(fig, output_path)
-
-
-def chart_project_focus(summary: dict[str, Any], output_path: Path) -> None:
-    """Generate compact horizontal progress bars for top project categories."""
-    items = top_n_with_other(summary["category_counts"], CATEGORY_ORDER)
-    total = sum(value for _, value in items) or 1
-    row_count = max(len(items), 1)
-    fig, ax = new_dashboard_figure(10, 1.8 + row_count * 0.55)
-
-    draw_rounded_card(ax, 0.02, 0.04, 0.96, 0.92)
-    ax.text(
-        0.05,
-        0.9,
-        "Project Focus",
-        transform=ax.transAxes,
-        fontsize=14,
-        fontweight="bold",
-        color=TEXT_PRIMARY,
-        ha="left",
-    )
-    ax.text(
-        0.05,
-        0.82,
-        "Public repository distribution by category",
-        transform=ax.transAxes,
-        fontsize=9,
-        color=TEXT_MUTED,
-        ha="left",
-    )
-
-    start_y = 0.68
-    row_step = 0.12
-    short_labels = {
-        "Agentic AI Workflows": "Agentic AI",
-        "Automation & APIs": "Automation & APIs",
-        "Data & Analytics": "Data & Analytics",
-        "Developer Tools": "Developer Tools",
-        "Web Applications": "Web Apps",
-        "Learning & Experiments": "Learning",
-    }
-
-    for index, (label, count) in enumerate(items):
-        pct = 100.0 * count / total
-        draw_progress_bar(
-            ax,
-            y=start_y - index * row_step,
-            fraction=pct / 100.0,
-            label=short_labels.get(label, label),
-            value_label=f"{pct:.0f}%  ({count})",
-        )
-
-    draw_portfolio_examples_footer(ax)
-    save_dashboard(fig, output_path)
-
-
-def chart_technology_mix(summary: dict[str, Any], output_path: Path) -> None:
-    """Generate capability-grouped technology mix as a segmented bar."""
-    items = top_n_with_other(summary["capability_counts"], CAPABILITY_ORDER)
-    total = sum(value for _, value in items) or 1
-    fig, ax = new_dashboard_figure(10, 3.0)
-
-    draw_rounded_card(ax, 0.02, 0.06, 0.96, 0.88)
-    ax.text(
-        0.05,
-        0.82,
-        "Technology Mix",
-        transform=ax.transAxes,
-        fontsize=14,
-        fontweight="bold",
-        color=TEXT_PRIMARY,
-        ha="left",
-    )
-    ax.text(
-        0.05,
-        0.74,
-        "Grouped by capability using repository metadata and topics",
-        transform=ax.transAxes,
-        fontsize=9,
-        color=TEXT_MUTED,
-        ha="left",
-    )
-
-    bar_left = 0.05
-    bar_width = 0.9
-    bar_y = 0.58
-    bar_height = 0.045
-    cursor = bar_left
-
-    for index, (label, count) in enumerate(items):
-        fraction = count / total
-        segment_width = bar_width * fraction
-        if segment_width <= 0:
-            continue
-        shade = ACCENT if index == 0 else ACCENT_LIGHT
-        alpha = 1.0 - (index * 0.08)
-        segment = FancyBboxPatch(
-            (cursor, bar_y),
-            segment_width,
-            bar_height,
-            boxstyle="round,pad=0,rounding_size=0.003",
-            transform=ax.transAxes,
-            facecolor=shade,
-            edgecolor="none",
-            alpha=max(alpha, 0.45),
-            zorder=3,
-        )
-        ax.add_patch(segment)
-        cursor += segment_width
-
-    label_y = 0.42
-    label_step = 0.11
-    for index, (label, count) in enumerate(items):
-        pct = 100.0 * count / total
-        y = label_y - index * label_step
-        ax.plot(
-            [0.05, 0.07],
-            [y, y],
-            transform=ax.transAxes,
-            color=ACCENT if index == 0 else ACCENT_LIGHT,
-            linewidth=3,
-            solid_capstyle="round",
-            zorder=4,
-        )
-        ax.text(
-            0.08,
-            y,
-            f"{label}  ·  {pct:.0f}% ({count})",
-            transform=ax.transAxes,
-            fontsize=10,
-            color=TEXT_PRIMARY,
-            va="center",
-            ha="left",
-        )
-
-    draw_portfolio_examples_footer(ax)
-    save_dashboard(fig, output_path)
-
-
-def generate_charts(data: dict[str, Any]) -> None:
-    """Generate all dashboard SVG assets."""
-    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-
-    summary = data["summary"]
-
-    chart_impact_summary(ASSETS_DIR / "impact_summary.svg")
-    chart_project_focus(summary, ASSETS_DIR / "project_focus.svg")
-    chart_technology_mix(summary, ASSETS_DIR / "technology_mix.svg")
-
-    legacy_files = [
-        "portfolio_summary.svg",
-        "language_distribution.svg",
-        "repo_maturity.svg",
-        "repository_activity.svg",
-    ]
-    for legacy in legacy_files:
-        legacy_path = ASSETS_DIR / legacy
-        if legacy_path.exists():
-            legacy_path.unlink()
-            logger.info("Removed legacy asset %s", legacy_path)
+def generate_assets(data: dict[str, Any]) -> None:
+    """Generate all native SVG dashboard assets."""
+    generate_all_assets(data, ASSETS_DIR)
+    logger.info("Generated dashboard SVG assets in %s", ASSETS_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -1197,7 +847,7 @@ def main() -> int:
         session = build_session()
         data = analyze_repositories(session)
         save_json(data, OUTPUT_JSON)
-        generate_charts(data)
+        generate_assets(data)
         logger.info(
             "Analysis complete: %d repositories analyzed.", data["repo_count"]
         )

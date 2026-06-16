@@ -249,6 +249,61 @@
       "Prototype": 0,
       "Experiment": 8
     },
+    "monthly_activity": [
+      {
+        "label": "Jul 25",
+        "count": 0
+      },
+      {
+        "label": "Aug 25",
+        "count": 0
+      },
+      {
+        "label": "Sep 25",
+        "count": 0
+      },
+      {
+        "label": "Oct 25",
+        "count": 0
+      },
+      {
+        "label": "Nov 25",
+        "count": 0
+      },
+      {
+        "label": "Dec 25",
+        "count": 0
+      },
+      {
+        "label": "Jan 26",
+        "count": 0
+      },
+      {
+        "label": "Feb 26",
+        "count": 0
+      },
+      {
+        "label": "Mar 26",
+        "count": 0
+      },
+      {
+        "label": "Apr 26",
+        "count": 0
+      },
+      {
+        "label": "May 26",
+        "count": 0
+      },
+      {
+        "label": "Jun 26",
+        "count": 0
+      }
+    ],
+    "most_recently_updated": {
+      "name": "Event-Search-and-Recommendation",
+      "pushed_at": "2023-10-14T04:26:20Z",
+      "url": "https://github.com/Mina314/Event-Search-and-Recommendation"
+    },
     "top_languages": {
       "Jupyter Notebook": 9155025,
       "Java": 44938,
