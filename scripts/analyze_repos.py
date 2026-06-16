@@ -119,53 +119,119 @@ def fetch_contributions(s: requests.Session) -> dict[str, Any]:
         "longest_streak": longest,
     }
 
-
 def fetch_activity(s: requests.Session) -> list[dict[str, str]]:
-    r = s.get(f"{API}/users/{USERNAME}/events/public", params={"per_page": 30}, timeout=30)
-    r.raise_for_status()
-    items = []
+    response = s.get(
+        f"{API}/users/{USERNAME}/events/public",
+        params={"per_page": 100},
+        timeout=30,
+    )
+    response.raise_for_status()
 
-    for event in r.json():
+    items: list[dict[str, str]] = []
+    seen_keys: set[str] = set()
+
+    for event in response.json():
         event_type = event.get("type", "")
-        repo = event.get("repo", {}).get("name", "").replace(f"{USERNAME}/", "")
+        repo = event.get("repo", {}).get("name", "").replace(
+            f"{USERNAME}/",
+            "",
+        )
         payload = event.get("payload", {})
+        created_at = event.get("created_at", "")
+
         action = ""
         detail = ""
+        dedupe_key = ""
 
         if event_type == "PushEvent":
-            count = payload.get("distinct_size") or payload.get("size")
+            # Keep only the most recent push for each repository.
+            dedupe_key = f"push:{repo}"
 
-            action = f"Pushed to {repo}"
-
+            count = payload.get("distinct_size")
             if count is None:
-                detail = "Updated repository"
+                count = payload.get("size")
+
+            action = f"Updated {repo}"
+
+            if isinstance(count, int) and count > 0:
+                detail = f"{count} commit{'s' if count != 1 else ''} pushed"
             else:
-                detail = f"{count} commit{'s' if count != 1 else ''}"
+                detail = "Repository updated"
+
         elif event_type == "PullRequestEvent":
-            action = f"{payload.get('action', 'Updated').capitalize()} pull request in {repo}"
-            detail = payload.get("pull_request", {}).get("title", "")
+            pull_request = payload.get("pull_request", {})
+            action_name = payload.get("action", "updated").capitalize()
+
+            dedupe_key = (
+                f"pr:{repo}:"
+                f"{pull_request.get('number', event.get('id', ''))}"
+            )
+
+            action = f"{action_name} pull request in {repo}"
+            detail = pull_request.get("title", "")
+
         elif event_type == "IssuesEvent":
-            action = f"{payload.get('action', 'Updated').capitalize()} issue in {repo}"
-            detail = payload.get("issue", {}).get("title", "")
+            issue = payload.get("issue", {})
+            action_name = payload.get("action", "updated").capitalize()
+
+            dedupe_key = (
+                f"issue:{repo}:"
+                f"{issue.get('number', event.get('id', ''))}"
+            )
+
+            action = f"{action_name} issue in {repo}"
+            detail = issue.get("title", "")
+
         elif event_type == "ReleaseEvent":
-            action = f"Released in {repo}"
-            detail = payload.get("release", {}).get("tag_name", "")
+            release = payload.get("release", {})
+
+            dedupe_key = (
+                f"release:{repo}:"
+                f"{release.get('tag_name', event.get('id', ''))}"
+            )
+
+            action = f"Released {release.get('tag_name', '')} in {repo}"
+            detail = release.get("name") or "New release published"
+
         elif event_type == "CreateEvent":
-            action = f"Created {payload.get('ref_type', 'item')} in {repo}"
-            detail = payload.get("ref") or ""
+            ref_type = payload.get("ref_type", "item")
+            ref = payload.get("ref") or ""
+
+            dedupe_key = f"create:{repo}:{ref_type}:{ref}"
+
+            action = f"Created {ref_type} in {repo}"
+            detail = ref
+
+        elif event_type == "ForkEvent":
+            dedupe_key = f"fork:{repo}"
+            action = f"Forked {repo}"
+            detail = "Created a repository fork"
+
+        elif event_type == "WatchEvent":
+            dedupe_key = f"star:{repo}"
+            action = f"Starred {repo}"
+            detail = "Added repository to starred projects"
+
         else:
             continue
 
-        items.append({
-            "action": action,
-            "detail": detail[:80],
-            "created_at": event.get("created_at", ""),
-        })
+        if dedupe_key in seen_keys:
+            continue
+
+        seen_keys.add(dedupe_key)
+
+        items.append(
+            {
+                "action": action,
+                "detail": detail[:90],
+                "created_at": created_at,
+            }
+        )
+
         if len(items) >= 5:
             break
 
     return items
-
 
 def main() -> None:
     s = build_session()
