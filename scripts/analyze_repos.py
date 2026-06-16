@@ -11,7 +11,7 @@ from typing import Any
 import requests
 from svg_assets import generate_all_assets
 
-USERNAME = "Mina314"
+USERNAME = "minazliu"
 API = "https://api.github.com"
 GRAPHQL = "https://api.github.com/graphql"
 ROOT = Path(__file__).resolve().parent.parent
@@ -226,7 +226,7 @@ def fetch_current_month_commit_summary(
     {
         "total": 16,
         "by_repository": {
-            "Mina314": 16
+            "minazliu": 16
         }
     }
     """

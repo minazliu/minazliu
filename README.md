@@ -11,12 +11,12 @@
 <table>
 <tr>
 <td width="33%" valign="top">
-<a href="https://github.com/Mina314?tab=repositories">
+<a href="https://github.com/minazliu?tab=repositories">
   <img src="./assets/focus_agentic_dark.svg" width="100%" alt="Agentic Workflows">
 </a>
 </td>
 <td width="33%" valign="top">
-<a href="https://github.com/Mina314?tab=repositories">
+<a href="https://github.com/minazliu?tab=repositories">
   <img src="./assets/focus_automation_dark.svg" width="100%" alt="Automation Systems">
 </a>
 </td>
@@ -33,17 +33,17 @@
 <table>
 <tr>
 <td width="33%" valign="top">
-<a href="https://github.com/Mina314/Mina314">
+<a href="https://github.com/minazliu/minazliu">
   <img src="./assets/project_portfolio_dark.svg" width="100%" alt="GitHub Portfolio Intelligence — Live">
 </a>
 </td>
 <td width="33%" valign="top">
-<a href="https://github.com/Mina314?tab=repositories">
+<a href="https://github.com/minazliu?tab=repositories">
   <img src="./assets/project_triage_dark.svg" width="100%" alt="Agentic Issue Triage — In development">
 </a>
 </td>
 <td width="33%" valign="top">
-<a href="https://github.com/Mina314?tab=repositories">
+<a href="https://github.com/minazliu?tab=repositories">
   <img src="./assets/project_patterns_dark.svg" width="100%" alt="Workflow Patterns — Planned">
 </a>
 </td>
