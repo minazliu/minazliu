@@ -340,23 +340,144 @@ PROJECTS = {
 
 
 def generate_project(theme, key):
-    title1, title2, status, color_name, desc1, desc2, tags = PROJECTS[key]
+    (
+        title1,
+        title2,
+        status,
+        color_name,
+        desc1,
+        desc2,
+        tags,
+    ) = PROJECTS[key]
+
     uid = f"project-{key}-{theme.name}"
     status_color = getattr(theme, color_name)
-    body = [
-        box(4, 4, 292, 260, 18, f"url(#{uid}-bg)", theme.border),
-        box(22, 22, 50, 50, 13, theme.inner, theme.border),
-        icon("agent" if key == "triage" else ("automation" if key == "patterns" else "signal"), 25, 31, theme),
-        txt(22, 112, title1, 20, theme.text, 750),
-        txt(22, 138, title2, 20, theme.text, 750),
-        box(22, 154, max(68, len(status) * 7 + 20), 24, 12, theme.inner, status_color, 1.5),
-        txt(32, 171, status, 11, status_color, 800),
-        txt(22, 207, desc1, 13, theme.secondary),
-        txt(22, 228, desc2, 13, theme.secondary),
-        txt(22, 249, tags, 12, theme.muted, 600),
-    ]
-    return render_svg(300, 268, gradients(theme, uid), "\n".join(body))
 
+    # Keep every project title on one line.
+    title = f"{title1} {title2}".strip()
+
+    if len(title) <= 18:
+        title_size = 20
+    elif len(title) <= 24:
+        title_size = 18
+    else:
+        title_size = 16
+
+    # Size the status pill to its text, with balanced padding.
+    status_font_size = 10
+    status_horizontal_padding = 13
+    estimated_character_width = status_font_size * 0.62
+
+    status_width = round(
+        len(status) * estimated_character_width
+        + status_horizontal_padding * 2
+    )
+
+    status_x = 22
+    status_y = 130
+    status_height = 24
+
+    body = [
+        box(
+            4,
+            4,
+            292,
+            260,
+            18,
+            f"url(#{uid}-bg)",
+            theme.border,
+        ),
+
+        # Icon container.
+        box(
+            22,
+            22,
+            50,
+            50,
+            13,
+            theme.inner,
+            theme.border,
+        ),
+
+        icon(
+            (
+                "agent"
+                if key == "triage"
+                else "automation"
+                if key == "patterns"
+                else "signal"
+            ),
+            25,
+            31,
+            theme,
+        ),
+
+        # Single-line adaptive project title.
+        txt(
+            22,
+            112,
+            title,
+            title_size,
+            theme.text,
+            750,
+        ),
+
+        # Status pill.
+        box(
+            status_x,
+            status_y,
+            status_width,
+            status_height,
+            status_height / 2,
+            theme.inner,
+            status_color,
+            1.5,
+        ),
+
+        # Centered status text.
+        txt(
+            status_x + status_width / 2,
+            status_y + 16.5,
+            status,
+            status_font_size,
+            status_color,
+            800,
+            "middle",
+        ),
+
+        # Description.
+        txt(
+            22,
+            184,
+            desc1,
+            13,
+            theme.secondary,
+        ),
+        txt(
+            22,
+            207,
+            desc2,
+            13,
+            theme.secondary,
+        ),
+
+        # Technology tags.
+        txt(
+            22,
+            242,
+            tags,
+            12,
+            theme.muted,
+            600,
+        ),
+    ]
+
+    return render_svg(
+        300,
+        268,
+        gradients(theme, uid),
+        "\n".join(body),
+    )
 
 def generate_insights(data, theme):
     uid = f"insights-{theme.name}"

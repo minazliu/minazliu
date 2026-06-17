@@ -4,11 +4,10 @@
 <rect x="4" y="4" width="292" height="260" rx="18" fill="url(#project-patterns-dark-bg)" stroke="#223651" stroke-width="1"/>
 <rect x="22" y="22" width="50" height="50" rx="13" fill="#101f32" stroke="#223651" stroke-width="1"/>
 <circle cx="47" cy="49" r="13" fill="none" stroke="#9b6cff" stroke-width="3"/><circle cx="47" cy="49" r="5" fill="#9b6cff"/>
-<text x="22" y="112" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="20" font-weight="750" fill="#f3f7ff" text-anchor="start">Workflow</text>
-<text x="22" y="138" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="20" font-weight="750" fill="#f3f7ff" text-anchor="start">Patterns</text>
-<rect x="22" y="154" width="69" height="24" rx="12" fill="#101f32" stroke="#9b6cff" stroke-width="1.5"/>
-<text x="32" y="171" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="11" font-weight="800" fill="#9b6cff" text-anchor="start">PLANNED</text>
-<text x="22" y="207" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#a8b5c8" text-anchor="start">Reusable intake, approval,</text>
-<text x="22" y="228" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#a8b5c8" text-anchor="start">routing, and escalation designs.</text>
-<text x="22" y="249" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="12" font-weight="600" fill="#71829b" text-anchor="start">System Design · APIs</text>
+<text x="22" y="112" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="20" font-weight="750" fill="#f3f7ff" text-anchor="start">Workflow Patterns</text>
+<rect x="22" y="130" width="69" height="24" rx="12.0" fill="#101f32" stroke="#9b6cff" stroke-width="1.5"/>
+<text x="56.5" y="146.5" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="10" font-weight="800" fill="#9b6cff" text-anchor="middle">PLANNED</text>
+<text x="22" y="184" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#a8b5c8" text-anchor="start">Reusable intake, approval,</text>
+<text x="22" y="207" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#a8b5c8" text-anchor="start">routing, and escalation designs.</text>
+<text x="22" y="242" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif" font-size="12" font-weight="600" fill="#71829b" text-anchor="start">System Design · APIs</text>
 </svg>
