@@ -138,26 +138,6 @@
 </tr>
 </table>
 
-<table>
-<tr>
-<td width="33%" valign="top">
-<a href="https://github.com/minazliu/minazliu">
-  <img src="./assets/project_portfolio_dark.svg" width="100%" alt="GitHub Portfolio Intelligence — Live">
-</a>
-</td>
-<td width="33%" valign="top">
-<a href="https://github.com/minazliu?tab=repositories">
-  <img src="./assets/project_triage_dark.svg" width="100%" alt="Agentic Issue Triage — In development">
-</a>
-</td>
-<td width="33%" valign="top">
-<a href="https://github.com/minazliu?tab=repositories">
-  <img src="./assets/project_patterns_dark.svg" width="100%" alt="Workflow Patterns — Planned">
-</a>
-</td>
-</tr>
-</table>
-
 ## Portfolio Insights & Activity
 
 <p align="center">
