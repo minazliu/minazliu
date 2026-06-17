@@ -2,14 +2,14 @@
   <picture>
     <source
       media="(prefers-color-scheme: dark)"
-      srcset="./assets/intro_dark.svg?v=3"
+      srcset="./assets/intro_dark.svg?v=4"
     >
     <source
       media="(prefers-color-scheme: light)"
-      srcset="./assets/intro_light.svg?v=3"
+      srcset="./assets/intro_light.svg?v=4"
     >
     <img
-      src="./assets/intro_light.svg?v=3"
+      src="./assets/intro_light.svg?v=4"
       width="100%"
       alt="Mina Liu — Technical Program Manager building agentic AI workflows"
     >
