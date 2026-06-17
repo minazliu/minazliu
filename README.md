@@ -107,7 +107,7 @@
 </td>
 
 <td width="33%" valign="top">
-<a href="https://github.com/minazliu?tab=repositories">
+<a href="https://github.com/minazliu/ai-tpm-copilot">
   <picture>
     <source
       media="(prefers-color-scheme: dark)"
@@ -120,7 +120,7 @@
     <img
       src="./assets/project_triage_light.svg"
       width="100%"
-      alt="Agentic Issue Triage — In development"
+      alt="Agentic Issue Triage — Live"
     >
   </picture>
 </a>

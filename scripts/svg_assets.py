@@ -332,7 +332,7 @@ def generate_focus(theme, key):
 PROJECTS = {
     "portfolio": ("GitHub Portfolio", "Intelligence", "LIVE", "green",
                   "Self-updating repository analytics", "and responsive profile insights.", "Python · GitHub API"),
-    "triage": ("Agentic Issue", "Triage", "IN DEVELOPMENT", "blue",
+    "triage": ("Agentic Issue", "Triage", "LIVE", "green",
                "Issue summaries, risk scoring,", "routing, and human review.", "Agentic AI · Workflow"),
     "patterns": ("Workflow", "Patterns", "PLANNED", "violet",
                  "Reusable intake, approval,", "routing, and escalation designs.", "System Design · APIs"),
