@@ -199,114 +199,106 @@ def generate_intro(theme):
             ),
         ])
 
-    # Move the illustration farther right and keep all lines away from the pills.
-    stack_x = 746
+    # Clean AI workflow illustration on the right.
+    diagram_x = 700
+    card_width = 220
+    card_height = 58
 
-    stack_layers = [
-        (stack_x, 278, 154, theme.violet),
-        (stack_x + 10, 232, 154, theme.blue),
-        (stack_x + 20, 186, 154, theme.cyan),
+    diagram_cards = [
+        (
+            92,
+            "AI Signals",
+            "Summarize & classify",
+            theme.blue,
+        ),
+        (
+            178,
+            "Orchestration",
+            "Prioritize, route & track",
+            theme.violet,
+        ),
+        (
+            264,
+            "Human Decisions",
+            "Review, escalate & deliver",
+            theme.cyan,
+        ),
     ]
 
-    for x, y, width, color in stack_layers:
+
+    for index, (y, title, subtitle, accent) in enumerate(diagram_cards):
         body.extend([
             box(
-                x,
+                diagram_x,
                 y,
-                width,
-                32,
-                9,
-                color,
-                color,
+                card_width,
+                card_height,
+                14,
+                theme.inner,
+                theme.border,
+                1.5,
             ),
-            (
-                f'<rect x="{x}" y="{y}" width="{width}" height="32" '
-                f'rx="9" fill="{color}" opacity=".22"/>'
+            box(
+                diagram_x + 14,
+                y + 15,
+                28,
+                28,
+                8,
+                accent,
+                accent,
+            ),
+            txt(
+                diagram_x + 28,
+                y + 34,
+                str(index + 1),
+                12,
+                theme.bg,
+                800,
+                "middle",
+            ),
+            txt(
+                diagram_x + 54,
+                y + 24,
+                title,
+                14,
+                theme.text,
+                750,
+            ),
+            txt(
+                diagram_x + 54,
+                y + 43,
+                subtitle,
+                9,
+                theme.secondary,
+                500,
             ),
         ])
 
-    # Cards above and beside the stack.
-    body.extend([
-        box(
-            766,
-            84,
-            60,
-            52,
-            13,
-            theme.inner,
-            theme.border,
-        ),
-        txt(
-            796,
-            116,
-            "AI",
-            16,
-            theme.blue,
-            800,
-            "middle",
-        ),
+        if index < len(diagram_cards) - 1:
+            connector_x = diagram_x + card_width / 2
+            connector_y1 = y + card_height
+            connector_y2 = diagram_cards[index + 1][0]
 
-        box(
-            846,
-            116,
-            64,
-            52,
-            13,
-            theme.inner,
-            theme.border,
-        ),
-        txt(
-            878,
-            148,
-            "</>",
-            15,
-            theme.violet,
-            800,
-            "middle",
-        ),
-
-        box(
-            858,
-            220,
-            58,
-            52,
-            13,
-            theme.inner,
-            theme.border,
-        ),
-        txt(
-            887,
-            252,
-            "▥",
-            22,
-            theme.cyan,
-            800,
-            "middle",
-        ),
-    ])
-
-    # Keep the workflow nodes and connector lines entirely on the right.
-    nodes = [
-        (722, 318),
-        (792, 338),
-        (878, 310),
-        (902, 166),
-    ]
-
-    for nx, ny in nodes:
-        body.append(
-            f'<circle cx="{nx}" cy="{ny}" r="6" fill="{theme.blue}"/>'
-        )
-
-    for (x1, y1), (x2, y2) in zip(nodes, nodes[1:]):
-        body.append(
-            f'<line '
-            f'x1="{x1}" y1="{y1}" '
-            f'x2="{x2}" y2="{y2}" '
-            f'stroke="{theme.violet}" '
-            f'stroke-width="1.5" '
-            f'opacity=".7"/>'
-        )
+            body.extend([
+                (
+                    f'<line '
+                    f'x1="{connector_x}" '
+                    f'y1="{connector_y1 + 5}" '
+                    f'x2="{connector_x}" '
+                    f'y2="{connector_y2 - 8}" '
+                    f'stroke="{theme.border}" '
+                    f'stroke-width="2"/>'
+                ),
+                (
+                    f'<path '
+                    f'd="M {connector_x - 4} {connector_y2 - 13} '
+                    f'L {connector_x} {connector_y2 - 8} '
+                    f'L {connector_x + 4} {connector_y2 - 13}" '
+                    f'fill="none" '
+                    f'stroke="{theme.border}" '
+                    f'stroke-width="2"/>'
+                ),
+            ])
 
     return render_svg(
         960,
