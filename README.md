@@ -1,8 +1,18 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./assets/intro_dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="./assets/intro_light.svg">
-    <img src="./assets/intro_dark.svg" width="100%" alt="Mina Liu — Technical Program Manager building agentic AI workflows">
+    <source
+      media="(prefers-color-scheme: dark)"
+      srcset="./assets/intro_dark.svg?v=3"
+    >
+    <source
+      media="(prefers-color-scheme: light)"
+      srcset="./assets/intro_light.svg?v=3"
+    >
+    <img
+      src="./assets/intro_light.svg?v=3"
+      width="100%"
+      alt="Mina Liu — Technical Program Manager building agentic AI workflows"
+    >
   </picture>
 </p>
 
