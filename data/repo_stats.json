@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-08-12T09:19:52.447375+00:00",
+  "generated_at": "2026-08-13T09:20:47.263659+00:00",
   "username": "minazliu",
-  "repo_count": 16,
+  "repo_count": 17,
   "language_count": 6,
   "top_language": "Python",
   "language_distribution": [
     {
       "name": "Python",
-      "bytes": 9224450,
+      "bytes": 9233660,
       "percentage": 98.5
     },
     {
@@ -38,13 +38,22 @@
   ],
   "repositories": [
     {
+      "name": "p0-relay",
+      "url": "https://github.com/minazliu/p0-relay",
+      "description": "Real-time GitHub \u2192 Slack routing for P0 issues, assignee changes, and @mentions, powered by n8n.",
+      "languages": {
+        "Python": 9210
+      },
+      "pushed_at": "2026-08-12T18:09:59Z"
+    },
+    {
       "name": "minazliu",
       "url": "https://github.com/minazliu/minazliu",
       "description": null,
       "languages": {
         "Python": 44038
       },
-      "pushed_at": "2026-08-11T09:08:56Z"
+      "pushed_at": "2026-08-12T09:19:53Z"
     },
     {
       "name": "ai-tpm-copilot",
@@ -181,9 +190,20 @@
     }
   ],
   "contributions": {
-    "commits": 43,
+    "commits": 47,
     "longest_streak": 5,
-    "commits_current_month": 0
+    "commits_current_month": 4
   },
-  "activity": []
+  "activity": [
+    {
+      "action": "Updated p0-relay",
+      "detail": "4 commits this month \u00b7 Latest: Replace personal webhookId with a generic placeholder.",
+      "created_at": "2026-08-12T18:10:00Z"
+    },
+    {
+      "action": "Created branch in p0-relay",
+      "detail": "main",
+      "created_at": "2026-08-12T17:43:30Z"
+    }
+  ]
 }
