@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T00:40:47.911471+00:00",
+  "generated_at": "2026-10-27T14:20:28.374386+00:00",
   "username": "minazliu",
   "repo_count": 17,
   "language_count": 6,
@@ -7,7 +7,7 @@
   "language_distribution": [
     {
       "name": "Python",
-      "bytes": 9225540,
+      "bytes": 9282521,
       "percentage": 98.5
     },
     {
@@ -38,13 +38,22 @@
   ],
   "repositories": [
     {
+      "name": "Edge-to-Cloud-IoT-Smoke-Sensing",
+      "url": "https://github.com/minazliu/Edge-to-Cloud-IoT-Smoke-Sensing",
+      "description": null,
+      "languages": {
+        "Python": 65716
+      },
+      "pushed_at": "2026-10-27T03:24:08Z"
+    },
+    {
       "name": "minazliu",
       "url": "https://github.com/minazliu/minazliu",
       "description": null,
       "languages": {
         "Python": 35918
       },
-      "pushed_at": "2026-10-27T00:39:32Z"
+      "pushed_at": "2026-10-27T00:40:49Z"
     },
     {
       "name": "p0-relay",
@@ -100,15 +109,6 @@
         "Dockerfile": 849
       },
       "pushed_at": "2023-08-21T18:32:25Z"
-    },
-    {
-      "name": "Cloud-Based-Real-Time-IoT-Data-Processing-and-Analytics",
-      "url": "https://github.com/minazliu/Cloud-Based-Real-Time-IoT-Data-Processing-and-Analytics",
-      "description": null,
-      "languages": {
-        "Python": 8735
-      },
-      "pushed_at": "2023-07-31T07:01:12Z"
     },
     {
       "name": "Microservices-Based-Fraud-Detection-Application",
@@ -190,20 +190,35 @@
     }
   ],
   "contributions": {
-    "commits": 48,
+    "commits": 68,
     "longest_streak": 5,
-    "commits_current_month": 1
+    "commits_current_month": 21
   },
   "activity": [
+    {
+      "action": "Updated Edge-to-Cloud-IoT-Smoke-Sensing",
+      "detail": "20 commits this month \u00b7 Latest: README: remove My role and AI assistance sections",
+      "created_at": "2026-10-27T03:24:07Z"
+    },
+    {
+      "action": "Created branch in Edge-to-Cloud-IoT-Smoke-Sensing",
+      "detail": "v2-structured-streaming",
+      "created_at": "2026-10-27T02:32:46Z"
+    },
+    {
+      "action": "Updated minazliu",
+      "detail": "1 commit this month \u00b7 Latest: Update README.md",
+      "created_at": "2026-10-27T00:39:33Z"
+    },
+    {
+      "action": "Merged pull request in Edge-to-Cloud-IoT-Smoke-Sensing",
+      "detail": "",
+      "created_at": "2026-10-27T02:45:27Z"
+    },
     {
       "action": "Starred NVIDIA/accelerated-computing-hub",
       "detail": "Added repository to starred projects",
       "created_at": "2026-10-07T19:41:39Z"
-    },
-    {
-      "action": "Starred stanford-cs221/lectures",
-      "detail": "Added repository to starred projects",
-      "created_at": "2026-09-28T23:12:30Z"
     }
   ]
 }
