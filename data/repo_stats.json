@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-26T15:07:00.436034+00:00",
+  "generated_at": "2026-10-27T00:36:12.999042+00:00",
   "username": "minazliu",
   "repo_count": 17,
   "language_count": 6,
@@ -7,7 +7,7 @@
   "language_distribution": [
     {
       "name": "Python",
-      "bytes": 9233660,
+      "bytes": 9225540,
       "percentage": 98.5
     },
     {
@@ -42,9 +42,9 @@
       "url": "https://github.com/minazliu/minazliu",
       "description": null,
       "languages": {
-        "Python": 44038
+        "Python": 35918
       },
-      "pushed_at": "2026-10-25T13:09:14Z"
+      "pushed_at": "2026-10-27T00:34:57Z"
     },
     {
       "name": "p0-relay",
