@@ -1,1100 +1,506 @@
+#!/usr/bin/env python3
+"""
+SVG renderer for the minazliu GitHub profile.
+
+Design system
+- One neutral ink palette + a single mint accent (blue and amber as secondary).
+- Sans for statements, mono for labels/metadata — reads like an engineer's notebook.
+- Every section is a standalone SVG with a dark and light variant so the README
+  follows the viewer's GitHub theme via <picture>.
+
+Story sections (hero, what-i-do, fun facts, path, toolbox) live in CONTENT below —
+edit the words there. The stats panel is rendered from data/repo_stats.json, which
+analyze_repos.py refreshes daily through GitHub Actions.
+"""
 from __future__ import annotations
 
 import html
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-FONT = "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif"
+W = 900  # canvas width shared by every asset
+
+SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif"
+MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace"
 
 
 @dataclass(frozen=True)
 class Theme:
     name: str
     bg: str
-    panel: str
-    inner: str
+    surface: str
     border: str
     text: str
-    secondary: str
     muted: str
+    faint: str
+    accent: str
+    accent_soft: str
     blue: str
-    violet: str
-    cyan: str
-    green: str
-    track: str
+    blue_soft: str
+    amber: str
+    amber_soft: str
+    pink: str
+    grid: str
 
 
-DARK = Theme("dark", "#07111f", "#0b1727", "#101f32", "#223651",
-             "#f3f7ff", "#a8b5c8", "#71829b", "#4ea1ff", "#9b6cff",
-             "#49d5e7", "#31c48d", "#192b40")
-LIGHT = Theme("light", "#f7f9fc", "#ffffff", "#f3f6fa", "#d8e0ea",
-              "#172033", "#56657a", "#8793a5", "#2563eb", "#7c3aed",
-              "#0891b2", "#16855b", "#e5ebf2")
+DARK = Theme(
+    name="dark",
+    bg="#0B0D10", surface="#111419", border="#242B35",
+    text="#ECEFF4", muted="#9AA4B2", faint="#5F6B7A",
+    accent="#3DDC97", accent_soft="#12281F",
+    blue="#7AA2FF", blue_soft="#161E33",
+    amber="#FFB454", amber_soft="#2A2114",
+    pink="#FF7AB6",
+    grid="#1A1F27",
+)
+
+LIGHT = Theme(
+    name="light",
+    bg="#FFFFFF", surface="#F7F8FA", border="#DDE2E8",
+    text="#0F1419", muted="#525C68", faint="#8A94A1",
+    accent="#0B9A63", accent_soft="#E6F5EE",
+    blue="#3563D9", blue_soft="#EAF0FC",
+    amber="#B86E00", amber_soft="#FBF1E1",
+    pink="#C8357A",
+    grid="#EEF1F4",
+)
+
+# --------------------------------------------------------------------------- #
+# Story content — edit here, not in the render functions.
+# --------------------------------------------------------------------------- #
+CONTENT: dict[str, Any] = {
+    "hero": {
+        "kicker": "HELLO, WORLD — I'M MINA LIU",
+        "headline": ["I build AI that ships,", "and make it make sense."],
+        "sub": [
+            "Engineer brain. Translator mouth. PM calendar.",
+            "Sr. TPM in AI Software at Tenstorrent · Santa Clara, CA",
+        ],
+        # (kind, text) — "cmd" lines get a $ prompt, "out" lines are output
+        "terminal": [
+            ("cmd", "whoami"),
+            ("out", "builder · bridge · lead"),
+            ("cmd", "cat superpowers.txt"),
+            ("out", "› ideas  → working demos"),
+            ("out", "› jargon → plain English"),
+            ("out", "› plans  → shipped code"),
+            ("cmd", "./ship --today"),
+            ("ok", "✓ shipped. coffee++"),
+        ],
+    },
+    "what": [
+        {
+            "index": "01 / BUILD",
+            "title": "I build with AI",
+            "points": [
+                "LLM apps, agents & RAG",
+                "Evals before vibes",
+                "Python, notebook → prod",
+            ],
+        },
+        {
+            "index": "02 / BRIDGE",
+            "title": "I bridge tech & people",
+            "points": [
+                "Discovery → demo in days",
+                "Architectures anyone gets",
+                "APIs, integrations, POCs",
+            ],
+        },
+        {
+            "index": "03 / LEAD",
+            "title": "I lead by shipping",
+            "points": [
+                "Roadmaps with working code",
+                "Unblock teams, cut cycle time",
+                "Risks spotted early, said plainly",
+            ],
+        },
+    ],
+    # (big label, line 1, line 2)
+    "facts": [
+        ("2020", "First repo: a COVID-19", "bar-chart race. Origin story."),
+        ("×3", "Built recommenders in Python,", "R and Java. Ask me for a movie."),
+        ("SILICON", "By day I help ship software", "that runs on AI chips."),
+        ("08:00 UTC", "This page redraws itself", "daily. Zero humans involved."),
+        ("CS221", "Binging Stanford's AI", "lectures for fun. Yes, fun."),
+        ("0", "Favorite meeting: the one", "I automated away."),
+    ],
+    "journey": [
+        ("2020", "Data nerd", ["R & Python analysis,", "viz & NLP"]),
+        ("2023", "ML & cloud builder", ["Recommenders, streaming,", "microservices"]),
+        ("2023 →", "Sr. TPM · AI software", ["Programs for AI chips,", "hands on keyboard"]),
+        ("NOW", "Agentic AI", ["LLM agents, evals,", "human-in-the-loop"]),
+    ],
+    "stack": [
+        ("AI & AGENTS", ["Python", "PyTorch", "Hugging Face", "LLM APIs", "Claude",
+                         "LangGraph", "RAG", "Vector DBs", "Evals", "MCP"]),
+        ("BUILD & SHIP", ["TypeScript", "FastAPI", "React", "Docker", "Kubernetes",
+                          "AWS", "Azure", "Git"]),
+        ("DATA", ["SQL", "PostgreSQL", "Pandas", "Spark", "Airflow"]),
+        ("SOLUTIONS & PROGRAMS", ["Discovery", "POCs & demos", "System design",
+                                  "Roadmaps", "Agile", "Exec comms"]),
+    ],
+}
+
+# --------------------------------------------------------------------------- #
+# Primitives
+# --------------------------------------------------------------------------- #
 
 
 def esc(v: Any) -> str:
     return html.escape(str(v), quote=True)
 
 
-def txt(x, y, value, size, color, weight=400, anchor="start"):
+def text(x, y, value, size, color, *, weight=400, anchor="start", font=SANS,
+         spacing=None, extra="") -> str:
+    ls = f' letter-spacing="{spacing}"' if spacing is not None else ""
     return (
-        f'<text x="{x}" y="{y}" font-family="{FONT}" font-size="{size}" '
-        f'font-weight="{weight}" fill="{color}" text-anchor="{anchor}">{esc(value)}</text>'
+        f'<text x="{x}" y="{y}" font-family="{font}" font-size="{size}" '
+        f'font-weight="{weight}" fill="{color}" text-anchor="{anchor}"{ls}{extra}>'
+        f"{esc(value)}</text>"
     )
 
 
-def box(x, y, w, h, radius, fill, stroke="none", sw=1):
+def rect(x, y, w, h, r, fill, stroke="none", sw=1, extra="") -> str:
     return (
-        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{radius}" '
-        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw}"/>'
+        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{r}" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw}"{extra}/>'
     )
 
 
-def render_svg(w, h, definitions, body):
+def frame(t: Theme, h: int, uid: str, body: str, *, label: str, grid=True) -> str:
+    pattern = (
+        f'<pattern id="{uid}-grid" width="24" height="24" patternUnits="userSpaceOnUse">'
+        f'<circle cx="1" cy="1" r="1" fill="{t.grid}"/></pattern>'
+    )
+    grid_fill = rect(1, 1, W - 2, h - 2, 18, f"url(#{uid}-grid)") if grid else ""
     return (
-        f'<?xml version="1.0" encoding="UTF-8"?>\n'
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" role="img">\n'
-        f'<defs>{definitions}</defs>\n{body}\n</svg>'
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {h}" '
+        f'width="{W}" height="{h}" role="img" aria-label="{esc(label)}">\n'
+        f"<defs>{pattern}</defs>\n"
+        f"{rect(1, 1, W - 2, h - 2, 18, t.bg, t.border, 1)}\n"
+        f"{grid_fill}\n{body}\n</svg>\n"
     )
 
 
-def gradients(theme: Theme, uid: str):
+def approx_width(s: str, size: float, *, mono=False, bold=False) -> float:
+    if mono:
+        return len(s) * size * 0.61
+    per = 0.56 if bold else 0.52
+    narrow = sum(1 for c in s if c in "il.,:;'|!·ftrj ")
+    wide = sum(1 for c in s if c in "mwMWOQGD@")
+    return (len(s) + 0.25 * wide - 0.35 * narrow) * size * per
+
+
+def chip(x, y, label, t: Theme, *, fill=None, stroke=None, color=None, size=11.5,
+         h=28) -> tuple[str, float]:
+    w = approx_width(label, size, mono=True) + 26
+    s = rect(x, y, w, h, h / 2, fill or t.surface, stroke or t.border, 1)
+    s += text(x + w / 2, y + h / 2 + size * 0.36, label, size, color or t.muted,
+              weight=600, anchor="middle", font=MONO)
+    return s, w
+
+
+def section_header(x, y, index, title, t: Theme) -> str:
     return (
-        f'<linearGradient id="{uid}-bg" x1="0" x2="1" y1="0" y2="1">'
-        f'<stop offset="0%" stop-color="{theme.bg}"/>'
-        f'<stop offset="100%" stop-color="{theme.panel}"/>'
-        f'</linearGradient>'
-        f'<linearGradient id="{uid}-accent" x1="0" x2="1">'
-        f'<stop offset="0%" stop-color="{theme.blue}"/>'
-        f'<stop offset="100%" stop-color="{theme.violet}"/>'
-        f'</linearGradient>'
-        f'<radialGradient id="{uid}-glow" cx="78%" cy="42%" r="48%">'
-        f'<stop offset="0%" stop-color="{theme.blue}" stop-opacity=".16"/>'
-        f'<stop offset="100%" stop-color="{theme.blue}" stop-opacity="0"/>'
-        f'</radialGradient>'
+        text(x, y, index, 11, t.accent, weight=700, font=MONO, spacing=1.5)
+        + text(x, y + 30, title, 22, t.text, weight=700)
     )
 
 
-def icon(kind, x, y, theme):
-    if kind == "agent":
-        return (
-            f'<rect x="{x}" y="{y}" width="44" height="34" rx="10" fill="none" '
-            f'stroke="{theme.cyan}" stroke-width="2"/>'
-            f'<circle cx="{x+14}" cy="{y+17}" r="3" fill="{theme.cyan}"/>'
-            f'<circle cx="{x+30}" cy="{y+17}" r="3" fill="{theme.cyan}"/>'
+def tones(t: Theme) -> list[tuple[str, str]]:
+    return [(t.accent, t.accent_soft), (t.blue, t.blue_soft), (t.amber, t.amber_soft)]
+
+
+# --------------------------------------------------------------------------- #
+# Hero — headline + animated terminal
+# --------------------------------------------------------------------------- #
+
+
+def generate_hero(t: Theme) -> str:
+    c = CONTENT["hero"]
+    uid = f"hero-{t.name}"
+    h = 340
+    x0 = 48
+    b = []
+
+    # waving status dot + kicker
+    b.append(
+        f'<circle cx="{x0 + 5}" cy="62" r="5" fill="{t.accent}">'
+        '<animate attributeName="opacity" values="1;.25;1" dur="2.4s" repeatCount="indefinite"/>'
+        "</circle>"
+    )
+    b.append(text(x0 + 20, 66, c["kicker"], 12, t.muted, weight=600, font=MONO, spacing=1.6))
+
+    line1, line2 = c["headline"]
+    b.append(text(x0, 128, line1, 36, t.text, weight=800, spacing=-0.8))
+    b.append(text(x0, 174, line2, 36, t.accent, weight=800, spacing=-0.8))
+
+    b.append(text(x0, 220, c["sub"][0], 17, t.text, weight=600))
+    b.append(text(x0, 248, c["sub"][1], 14, t.muted))
+
+    # little "ships" squiggle under the headline: three dots that bounce
+    for i, col in enumerate((t.accent, t.blue, t.amber)):
+        cx = x0 + 6 + i * 18
+        b.append(
+            f'<circle cx="{cx}" cy="290" r="5" fill="{col}">'
+            f'<animate attributeName="cy" values="290;282;290" dur="1.2s" begin="{i * 0.18:.2f}s" '
+            'repeatCount="indefinite"/></circle>'
         )
-    if kind == "automation":
-        return (
-            f'<circle cx="{x+22}" cy="{y+18}" r="13" fill="none" '
-            f'stroke="{theme.violet}" stroke-width="3"/>'
-            f'<circle cx="{x+22}" cy="{y+18}" r="5" fill="{theme.violet}"/>'
+    b.append(text(x0 + 62, 294, "currently: making agents useful", 12, t.faint, font=MONO))
+
+    # terminal window
+    tx, ty, tw, th = 588, 40, 270, 260
+    b.append(rect(tx, ty, tw, th, 14, t.surface, t.border, 1))
+    b.append(f'<line x1="{tx}" y1="{ty + 34}" x2="{tx + tw}" y2="{ty + 34}" stroke="{t.border}"/>')
+    for i, col in enumerate(("#FF5F57", "#FEBC2E", "#28C840")):
+        b.append(f'<circle cx="{tx + 20 + i * 16}" cy="{ty + 17}" r="5" fill="{col}"/>')
+    b.append(text(tx + tw / 2 + 20, ty + 21, "~/mina", 11, t.faint, anchor="middle", font=MONO))
+
+    lines = c["terminal"]
+    dur = 10.0
+    step = 0.7
+    for i, (kind, value) in enumerate(lines):
+        ly = ty + 62 + i * 24
+        start = (0.4 + i * step) / dur
+        key = f"0;{start:.3f};{start + 0.02:.3f};0.93;1"
+        anim = (f'<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="{key}" '
+                f'dur="{dur}s" repeatCount="indefinite"/>')
+        if kind == "cmd":
+            body = (text(tx + 18, ly, "$", 12, t.accent, weight=700, font=MONO)
+                    + text(tx + 32, ly, value, 12, t.text, weight=600, font=MONO))
+        elif kind == "ok":
+            body = text(tx + 18, ly, value, 12, t.accent, weight=700, font=MONO)
+        else:
+            body = text(tx + 18, ly, value, 12, t.muted, font=MONO)
+        b.append(f"<g opacity='0'>{anim}{body}</g>")
+    # blinking cursor after last line
+    cy = ty + 62 + (len(lines) - 1) * 24 - 10
+    cx = tx + 18 + approx_width(lines[-1][1], 12, mono=True) + 6
+    b.append(
+        f'<rect x="{cx:.0f}" y="{cy}" width="7" height="13" fill="{t.accent}">'
+        '<animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/></rect>'
+    )
+
+    return frame(t, h, uid, "\n".join(b),
+                 label="Mina Liu — I build AI that ships, and make it make sense.")
+
+
+# --------------------------------------------------------------------------- #
+# What I do — build / bridge / lead
+# --------------------------------------------------------------------------- #
+
+
+def generate_what(t: Theme) -> str:
+    uid = f"what-{t.name}"
+    h = 272
+    b = [section_header(48, 56, "WHAT I DO", "Build it. Explain it. Ship it.", t)]
+    col_w, gap, x0, y0 = 256, 18, 48, 110
+    for i, item in enumerate(CONTENT["what"]):
+        x = x0 + i * (col_w + gap)
+        tone, _ = tones(t)[i]
+        b.append(rect(x, y0, col_w, 132, 14, t.surface, t.border, 1))
+        b.append(rect(x + 20, y0 + 16, 22, 3, 1.5, tone))
+        b.append(text(x + 20, y0 + 34, item["index"], 10.5, tone, weight=700, font=MONO, spacing=1.4))
+        b.append(text(x + 20, y0 + 58, item["title"], 17, t.text, weight=700))
+        for j, p in enumerate(item["points"]):
+            yy = y0 + 84 + j * 18
+            b.append(text(x + 20, yy, "›", 13, tone, weight=700, font=MONO))
+            b.append(text(x + 34, yy, p, 12.5, t.muted))
+    return frame(t, h, uid, "\n".join(b), label="What I do: build with AI, translate tech and people, lead by shipping")
+
+
+# --------------------------------------------------------------------------- #
+# Fun facts
+# --------------------------------------------------------------------------- #
+
+
+def generate_facts(t: Theme) -> str:
+    uid = f"facts-{t.name}"
+    facts = CONTENT["facts"]
+    cols, col_w, row_h, gap = 3, 256, 112, 18
+    rows = (len(facts) + cols - 1) // cols
+    h = 110 + rows * row_h + (rows - 1) * gap + 34
+    b = [section_header(48, 56, "FUN FACTS", "Things you won't find on my resume", t)]
+    palette = tones(t)
+    for i, (big, l1, l2) in enumerate(facts):
+        r, c = divmod(i, cols)
+        x = 48 + c * (col_w + gap)
+        y = 110 + r * (row_h + gap)
+        tone, soft = palette[i % 3]
+        b.append(rect(x, y, col_w, row_h, 14, t.surface, t.border, 1))
+        # floating badge
+        bw = approx_width(big, 15, mono=True) + 22
+        b.append(
+            f'<g><animateTransform attributeName="transform" type="translate" '
+            f'values="0 0;0 -3;0 0" dur="3s" begin="{i * 0.35:.2f}s" repeatCount="indefinite"/>'
+            f'{rect(x + 18, y + 18, bw, 30, 8, soft, tone, 1)}'
+            f'{text(x + 18 + bw / 2, y + 38, big, 15, tone, weight=800, anchor="middle", font=MONO)}'
+            "</g>"
         )
-    return (
-        f'<rect x="{x+3}" y="{y+22}" width="7" height="14" rx="2" fill="{theme.blue}"/>'
-        f'<rect x="{x+16}" y="{y+13}" width="7" height="23" rx="2" fill="{theme.blue}"/>'
-        f'<rect x="{x+29}" y="{y+3}" width="7" height="33" rx="2" fill="{theme.cyan}"/>'
+        b.append(text(x + 18, y + 74, l1, 13, t.text, weight=500))
+        b.append(text(x + 18, y + 94, l2, 13, t.muted))
+    return frame(t, h, uid, "\n".join(b), label="Fun facts about Mina")
+
+
+# --------------------------------------------------------------------------- #
+# Journey timeline
+# --------------------------------------------------------------------------- #
+
+
+def generate_journey(t: Theme) -> str:
+    uid = f"journey-{t.name}"
+    h = 250
+    b = [section_header(48, 56, "THE PATH", "From data nerd to agent builder", t)]
+    steps = CONTENT["journey"]
+    x0, x1, ly = 64, W - 64, 128
+    b.append(f'<line x1="{x0}" y1="{ly}" x2="{x1}" y2="{ly}" stroke="{t.border}" stroke-width="2"/>')
+    span = x1 - x0
+    b.append(
+        f'<line x1="{x0}" y1="{ly}" x2="{x1}" y2="{ly}" stroke="{t.accent}" stroke-width="2" '
+        f'stroke-dasharray="{span}" stroke-dashoffset="0">'
+        f'<animate attributeName="stroke-dashoffset" values="{span};0;0" keyTimes="0;.4;1" '
+        'dur="6s" repeatCount="indefinite"/></line>'
     )
+    step = span / (len(steps) - 1)
+    for i, (year, title, lines) in enumerate(steps):
+        x = x0 + i * step
+        last = i == len(steps) - 1
+        anchor = "start" if i == 0 else ("end" if last else "middle")
+        if last:
+            b.append(
+                f'<circle cx="{x}" cy="{ly}" r="11" fill="{t.accent_soft}">'
+                '<animate attributeName="r" values="8;14;8" dur="2.4s" repeatCount="indefinite"/></circle>'
+            )
+        b.append(
+            f'<circle cx="{x}" cy="{ly}" r="6" fill="{t.accent if last else t.bg}" '
+            f'stroke="{t.accent}" stroke-width="2"/>'
+        )
+        tx = x - 6 if i == 0 else (x + 6 if last else x)
+        b.append(text(tx, ly - 20, year, 11, t.accent if last else t.faint, weight=700, font=MONO,
+                      spacing=1.2, anchor=anchor))
+        b.append(text(tx, ly + 34, title, 15, t.text, weight=700, anchor=anchor))
+        for j, ln in enumerate(lines):
+            b.append(text(tx, ly + 56 + j * 18, ln, 12.5, t.muted, anchor=anchor))
+    return frame(t, h, uid, "\n".join(b), label="Path: data nerd, ML and cloud builder, TPM in AI software, agentic AI")
 
 
-def pill(x, y, label, theme):
-    w = max(96, len(label) * 7 + 28)
-    return box(x, y, w, 34, 17, theme.inner, theme.border) + txt(x+14, y+22, label, 13, theme.secondary, 600)
+# --------------------------------------------------------------------------- #
+# Toolbox
+# --------------------------------------------------------------------------- #
 
 
-def generate_intro(theme):
-    uid = f"intro-{theme.name}"
-    d = gradients(theme, uid)
-
-    body = [
-        box(
-            8,
-            8,
-            944,
-            360,
-            26,
-            f"url(#{uid}-bg)",
-            theme.border,
-            1.5,
-        ),
-        (
-            f'<rect x="8" y="8" width="944" height="360" rx="26" '
-            f'fill="url(#{uid}-glow)"/>'
-        ),
-
-        # Keep "Hi, I’m Mina." in one text element so spacing is consistent.
-        (
-            f'<text x="52" y="82" '
-            f'font-family="{FONT}" '
-            f'font-size="34" '
-            f'font-weight="700" '
-            f'fill="{theme.text}">'
-            f'Hi, I’m '
-            f'<tspan font-weight="800" fill="url(#{uid}-accent)">Mina.</tspan>'
-            f'</text>'
-        ),
-
-        txt(
-            52,
-            138,
-            "I build agentic workflows and",
-            35,
-            theme.text,
-            700,
-        ),
-        txt(
-            52,
-            184,
-            "AI-powered operational systems.",
-            35,
-            theme.text,
-            700,
-        ),
-
-        txt(
-            52,
-            229,
-            "Connecting AI, APIs, automation, data, and human review",
-            16,
-            theme.secondary,
-        ),
-        txt(
-            52,
-            254,
-            "to turn operational complexity into clear, reviewable action.",
-            16,
-            theme.secondary,
-        ),
-    ]
-
-    # Use explicit positions and widths so the pills stay in the left content area.
-    intro_pills = [
-        (52, "AI Systems", 104),
-        (168, "Workflow Automation", 164),
-        (344, "Operational Intelligence", 190),
-        (546, "Human-in-the-loop", 160),
-    ]
-
-    for x, label, width in intro_pills:
-        body.extend([
-            box(
-                x,
-                278,
-                width,
-                34,
-                17,
-                theme.inner,
-                theme.border,
-            ),
-            txt(
-                x + width / 2,
-                300,
-                label,
-                12,
-                theme.secondary,
-                600,
-                "middle",
-            ),
-        ])
-
-    # Clean AI workflow illustration on the right.
-    diagram_x = 720
-    card_width = 220
-    card_height = 58
-
-    diagram_cards = [
-        (
-            92,
-            "AI Signals",
-            "Summarize & classify",
-            theme.blue,
-        ),
-        (
-            178,
-            "Orchestration",
-            "Prioritize, route & track",
-            theme.violet,
-        ),
-        (
-            264,
-            "Human Decisions",
-            "Review, escalate & deliver",
-            theme.cyan,
-        ),
-    ]
+def generate_stack(t: Theme) -> str:
+    uid = f"stack-{t.name}"
+    label_x, chips_x, right = 48, 248, W - 48
+    y = 110
+    b = []
+    palette = tones(t) + [(t.pink, t.surface)]
+    for gi, (group, items) in enumerate(CONTENT["stack"]):
+        tone, soft = palette[gi % len(palette)]
+        b.append(text(label_x, y + 18, group, 10.5, tone, weight=700, font=MONO, spacing=1.3))
+        x = chips_x
+        for j, item in enumerate(items):
+            w = approx_width(item, 11.5, mono=True) + 26
+            if x + w > right:
+                x = chips_x
+                y += 36
+            s, w = chip(x, y, item, t, fill=soft if j == 0 else t.surface,
+                        stroke=tone if j == 0 else t.border,
+                        color=tone if j == 0 else t.text)
+            b.append(s)
+            x += w + 8
+        y += 36 + 16
+        if gi < len(CONTENT["stack"]) - 1:
+            b.append(f'<line x1="{label_x}" y1="{y - 8}" x2="{right}" y2="{y - 8}" '
+                     f'stroke="{t.border}" stroke-dasharray="2 4"/>')
+            y += 6
+    h = int(y + 18)
+    head = section_header(48, 56, "TOOLBOX", "What I reach for", t)
+    return frame(t, h, uid, head + "\n" + "\n".join(b), label="Tech stack and toolbox")
 
 
-    for index, (y, title, subtitle, accent) in enumerate(diagram_cards):
-        body.extend([
-            box(
-                diagram_x,
-                y,
-                card_width,
-                card_height,
-                14,
-                theme.inner,
-                theme.border,
-                1.5,
-            ),
-            box(
-                diagram_x + 14,
-                y + 15,
-                28,
-                28,
-                8,
-                accent,
-                accent,
-            ),
-            txt(
-                diagram_x + 28,
-                y + 34,
-                str(index + 1),
-                12,
-                theme.bg,
-                800,
-                "middle",
-            ),
-            txt(
-                diagram_x + 54,
-                y + 24,
-                title,
-                14,
-                theme.text,
-                750,
-            ),
-            txt(
-                diagram_x + 54,
-                y + 43,
-                subtitle,
-                9,
-                theme.secondary,
-                500,
-            ),
-        ])
+# --------------------------------------------------------------------------- #
+# Live stats (data-driven)
+# --------------------------------------------------------------------------- #
 
-        if index < len(diagram_cards) - 1:
-            connector_x = diagram_x + card_width / 2
-            connector_y1 = y + card_height
-            connector_y2 = diagram_cards[index + 1][0]
-
-            body.extend([
-                (
-                    f'<line '
-                    f'x1="{connector_x}" '
-                    f'y1="{connector_y1 + 5}" '
-                    f'x2="{connector_x}" '
-                    f'y2="{connector_y2 - 8}" '
-                    f'stroke="{theme.border}" '
-                    f'stroke-width="2"/>'
-                ),
-                (
-                    f'<path '
-                    f'd="M {connector_x - 4} {connector_y2 - 13} '
-                    f'L {connector_x} {connector_y2 - 8} '
-                    f'L {connector_x + 4} {connector_y2 - 13}" '
-                    f'fill="none" '
-                    f'stroke="{theme.border}" '
-                    f'stroke-width="2"/>'
-                ),
-            ])
-
-    return render_svg(
-        960,
-        376,
-        d,
-        "\n".join(body),
-    )
-
-
-FOCUS = {
-    "agentic": ("Agentic Workflows", "Triage, classification, scoring,", "routing, and human review.", "agent"),
-    "automation": ("Automation Systems", "GitHub, Jira, Slack, APIs,", "n8n, and internal tools.", "automation"),
-    "intelligence": ("Operational Intelligence", "Signals for risk, ownership,", "incidents, SLAs, and delivery.", "signal"),
+LANG_COLORS = {
+    "Python": "#3572A5", "JavaScript": "#F1E05A", "TypeScript": "#3178C6",
+    "Java": "#B07219", "CSS": "#663399", "HTML": "#E34C26", "R": "#198CE7",
 }
 
 
-def generate_focus(theme, key):
-    title, line1, line2, kind = FOCUS[key]
-    uid = f"focus-{key}-{theme.name}"
-    body = [
-        box(4, 4, 292, 180, 18, f"url(#{uid}-bg)", theme.border),
-        icon(kind, 24, 28, theme),
-        txt(82, 52, title, 17, theme.text, 700),
-        txt(24, 106, line1, 14, theme.secondary),
-        txt(24, 130, line2, 14, theme.secondary),
-        txt(268, 101, "›", 28, theme.muted, 400, "middle"),
-    ]
-    return render_svg(300, 188, gradients(theme, uid), "\n".join(body))
+def fmt(v: Any) -> str:
+    return "—" if v is None else str(v)
 
 
-PROJECTS = {
-    "portfolio": ("GitHub Portfolio", "Intelligence", "LIVE", "green",
-                  "Self-updating repository analytics", "and responsive profile insights.", "Python · GitHub API"),
-    "triage": ("Agentic Issue", "Triage", "LIVE", "green",
-               "Issue summaries, risk scoring,", "routing, and human review.", "Agentic AI · Workflow"),
-    "patterns": ("Workflow", "Patterns", "PLANNED", "violet",
-                 "Reusable intake, approval,", "routing, and escalation designs.", "System Design · APIs"),
-}
+def generate_stats(data: dict[str, Any], t: Theme) -> str:
+    uid = f"stats-{t.name}"
+    h = 262
+    b = [section_header(48, 56, "LIVE  ·  REFRESHED DAILY", "Keyboard telemetry", t)]
 
-
-def generate_project(theme, key):
-    (
-        title1,
-        title2,
-        status,
-        color_name,
-        desc1,
-        desc2,
-        tags,
-    ) = PROJECTS[key]
-
-    uid = f"project-{key}-{theme.name}"
-    status_color = getattr(theme, color_name)
-
-    # Keep every project title on one line.
-    title = f"{title1} {title2}".strip()
-
-    if len(title) <= 18:
-        title_size = 20
-    elif len(title) <= 24:
-        title_size = 18
-    else:
-        title_size = 16
-
-    # Size the status pill to its text, with balanced padding.
-    status_font_size = 10
-    status_horizontal_padding = 13
-    estimated_character_width = status_font_size * 0.62
-
-    status_width = round(
-        len(status) * estimated_character_width
-        + status_horizontal_padding * 2
-    )
-
-    status_x = 22
-    status_y = 130
-    status_height = 24
-
-    body = [
-        box(
-            4,
-            4,
-            292,
-            260,
-            18,
-            f"url(#{uid}-bg)",
-            theme.border,
-        ),
-
-        # Icon container.
-        box(
-            22,
-            22,
-            50,
-            50,
-            13,
-            theme.inner,
-            theme.border,
-        ),
-
-        icon(
-            (
-                "agent"
-                if key == "triage"
-                else "automation"
-                if key == "patterns"
-                else "signal"
-            ),
-            25,
-            31,
-            theme,
-        ),
-
-        # Single-line adaptive project title.
-        txt(
-            22,
-            112,
-            title,
-            title_size,
-            theme.text,
-            750,
-        ),
-
-        # Status pill.
-        box(
-            status_x,
-            status_y,
-            status_width,
-            status_height,
-            status_height / 2,
-            theme.inner,
-            status_color,
-            1.5,
-        ),
-
-        # Centered status text.
-        txt(
-            status_x + status_width / 2,
-            status_y + 16.5,
-            status,
-            status_font_size,
-            status_color,
-            800,
-            "middle",
-        ),
-
-        # Description.
-        txt(
-            22,
-            184,
-            desc1,
-            13,
-            theme.secondary,
-        ),
-        txt(
-            22,
-            207,
-            desc2,
-            13,
-            theme.secondary,
-        ),
-
-        # Technology tags.
-        txt(
-            22,
-            242,
-            tags,
-            12,
-            theme.muted,
-            600,
-        ),
-    ]
-
-    return render_svg(
-        300,
-        268,
-        gradients(theme, uid),
-        "\n".join(body),
-    )
-
-def generate_insights(data, theme):
-    uid = f"insights-{theme.name}"
-    contributions = data.get("contributions", {})
+    contrib = data.get("contributions", {}) or {}
     metrics = [
-        ("Repositories", str(data.get("repo_count", 0)), "public, non-archived"),
-        (
-            "Commits",
-            (
-                str(contributions.get("commits_current_month"))
-                if contributions.get("commits_current_month") is not None
-                else "N/A"
-            ),
-            "current calendar month",
-        ),
-        ("Top Language", data.get("top_language", "N/A"), "by GitHub language bytes"),
-        (
-            "Longest Streak",
-            f"{contributions.get('longest_streak')} days"
-            if contributions.get("longest_streak") is not None
-            else "N/A",
-            "all-time contribution activity",
-        )
+        (fmt(contrib.get("commits")), "commits · 12 mo"),
+        (fmt(contrib.get("longest_streak")), "longest streak · days"),
+        (fmt(data.get("language_count")), "languages spoken"),
+        ("1", "profile that codes itself"),
     ]
-    body = [
-        box(8, 8, 944, 246, 22, f"url(#{uid}-bg)", theme.border),
-        txt(34, 44, "Portfolio Insights", 22, theme.text, 750),
-    ]
-    for i, (label, value, note) in enumerate(metrics):
-        x = 28 + i * 230
-        body.extend([
-            box(x, 66, 210, 154, 16, theme.inner, theme.border),
-            txt(x+18, 96, label, 13, theme.muted, 650),
-            txt(x+18, 142, value, 28 if len(value) < 12 else 20, theme.text, 800),
-            txt(x+18, 174, note, 12, theme.secondary),
-        ])
-        pts = [(x+18,202),(x+52,193),(x+86,198),(x+120,182),(x+154,188),(x+190,176)]
-        body.append(f'<path d="M {" L ".join(f"{px} {py}" for px,py in pts)}" fill="none" stroke="{theme.blue if i%2==0 else theme.violet}" stroke-width="2.5"/>')
-    return render_svg(960, 262, gradients(theme, uid), "\n".join(body))
-
-
-def relative_time(value):
-    if not value:
-        return ""
-    try:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        delta = datetime.now(timezone.utc) - dt
-        if delta.days:
-            return f"{delta.days}d ago"
-        hours = delta.seconds // 3600
-        if hours:
-            return f"{hours}h ago"
-        return f"{max(1, delta.seconds // 60)}m ago"
-    except ValueError:
-        return ""
-
-def generate_activity(data, theme):
-    uid = f"activity-{theme.name}"
-    items = data.get("activity", [])[:5]
-
-    item_count = max(len(items), 1)
-
-    header_height = 68
-    row_height = 62
-    bottom_padding = 28
-
-    card_height = (
-        header_height
-        + item_count * row_height
-        + bottom_padding
-    )
-
-    svg_height = card_height + 16
-
-    body = [
-        box(
-            8,
-            8,
-            944,
-            card_height,
-            22,
-            f"url(#{uid}-bg)",
-            theme.border,
-        ),
-        txt(
-            34,
-            44,
-            "Recent Activity",
-            22,
-            theme.text,
-            750,
-        ),
-    ]
-
-    if not items:
-        body.append(
-            txt(
-                34,
-                94,
-                "No recent public activity found.",
-                16,
-                theme.secondary,
-            )
-        )
-    else:
-        colors = [
-            theme.blue,
-            theme.green,
-            theme.violet,
-            theme.cyan,
-        ]
-
-        for i, item in enumerate(items):
-            y = 82 + i * 62
-            color = colors[i % len(colors)]
-
-            body.append(
-                f'<circle cx="46" cy="{y}" r="8" fill="{color}"/>'
-            )
-
-            if i < len(items) - 1:
-                body.append(
-                    f'<line '
-                    f'x1="46" y1="{y + 10}" '
-                    f'x2="46" y2="{y + 52}" '
-                    f'stroke="{theme.border}" '
-                    f'stroke-width="2"/>'
-                )
-
-            body.append(
-                txt(
-                    70,
-                    y + 5,
-                    item.get("action", ""),
-                    15,
-                    theme.text,
-                    650,
-                )
-            )
-
-            detail = item.get("detail", "")
-            if detail:
-                words = detail.split()
-                lines = []
-                current_line = ""
-
-                for word in words:
-                    candidate = (
-                        f"{current_line} {word}".strip()
-                    )
-
-                    if len(candidate) <= 44:
-                        current_line = candidate
-                    else:
-                        if current_line:
-                            lines.append(current_line)
-                        current_line = word
-
-                if current_line:
-                    lines.append(current_line)
-
-                for line_index, line in enumerate(lines[:2]):
-                    body.append(
-                        txt(
-                            644,
-                            y + 25 + line_index * 16,
-                            line,
-                            10,
-                            theme.secondary,
-                        )
-                    )
-
-            body.append(
-                txt(
-                    918,
-                    y + 5,
-                    relative_time(item.get("created_at", "")),
-                    12,
-                    theme.muted,
-                    500,
-                    "end",
-                )
-            )
-
-    return render_svg(
-        960,
-        svg_height,
-        gradients(theme, uid),
-        "\n".join(body),
-    )
-
-def generate_insights_activity(data: dict[str, Any], theme: Theme) -> str:
-    uid = f"insights-activity-{theme.name}"
-
-    width = 960
-    height = 440
-
-    contributions = data.get("contributions", {})
-    languages = data.get("language_distribution", [])
-    activity = data.get("activity", [])[:4]
-
-    repo_count = data.get("repo_count", 0)
-    language_count = data.get("language_count", 0)
-
-    commits = contributions.get("commits_current_month")
-    commits_text = str(commits) if commits is not None else "N/A"
-
-    body = [
-        # Portfolio Insights panel.
-        box(
-            8,
-            8,
-            570,
-            424,
-            22,
-            f"url(#{uid}-bg)",
-            theme.border,
-            1.5,
-        ),
-        txt(
-            32,
-            48,
-            "Portfolio Insights",
-            21,
-            theme.text,
-            750,
-        ),
-
-        # Activity panel.
-        box(
-            592,
-            8,
-            360,
-            424,
-            22,
-            f"url(#{uid}-bg)",
-            theme.border,
-            1.5,
-        ),
-        txt(
-            616,
-            48,
-            "Activity",
-            21,
-            theme.text,
-            750,
-        ),
-    ]
-
-    # Top portfolio metric cards.
-    metrics = [
-        (
-            "Repositories",
-            str(repo_count),
-            "public, non-archived",
-            theme.blue,
-        ),
-        (
-            "Commits",
-            commits_text,
-            "current calendar month",
-            theme.violet,
-        ),
-        (
-            "Languages Used",
-            str(language_count),
-            "across public repositories",
-            theme.cyan,
-        ),
-    ]
-
-    card_width = 164
-    card_height = 112
-    card_gap = 12
-
-    for index, (label, value, note, color) in enumerate(metrics):
-        x = 28 + index * (card_width + card_gap)
-
-        body.extend([
-            box(
-                x,
-                68,
-                card_width,
-                card_height,
-                14,
-                theme.inner,
-                theme.border,
-            ),
-            txt(
-                x + 16,
-                94,
-                label,
-                11,
-                theme.muted,
-                650,
-            ),
-            txt(
-                x + 16,
-                132,
-                value,
-                27,
-                theme.text,
-                800,
-            ),
-            txt(
-                x + 16,
-                150,
-                note,
-                9,
-                theme.secondary,
-            ),
-        ])
-
-
-        points = [
-            (x + 16, 171),
-            (x + 48, 164),
-            (x + 80, 168),
-            (x + 112, 158),
-            (x + 146, 163),
-        ]
-
-
-        body.append(
-            f'<path '
-            f'd="M {" L ".join(f"{px} {py}" for px, py in points)}" '
-            f'fill="none" '
-            f'stroke="{color}" '
-            f'stroke-width="2.5"/>'
-        )
-
-    # Language distribution heading.
-    body.append(
-        txt(
-            32,
-            220,
-            "Language Distribution",
-            14,
-            theme.text,
-            700,
-        )
-    )
-
-    # Donut chart.
-    donut_cx = 112
-    donut_cy = 302
-    donut_radius = 52
-    donut_stroke = 20
-    circumference = 2 * 3.14159 * donut_radius
-
-    language_colors = [
-        theme.blue,
-        theme.violet,
-        theme.cyan,
-        theme.green,
-        theme.muted,
-    ]
-
-    # Background donut track.
-    body.append(
-        f'<circle '
-        f'cx="{donut_cx}" '
-        f'cy="{donut_cy}" '
-        f'r="{donut_radius}" '
-        f'fill="none" '
-        f'stroke="{theme.track}" '
-        f'stroke-width="{donut_stroke}"/>'
-    )
-
-    offset = 0.0
-
-    for index, language in enumerate(languages):
-        percentage = float(language.get("percentage", 0))
-        segment = circumference * percentage / 100
-        color = language_colors[index % len(language_colors)]
-
-        body.append(
-            f'<circle '
-            f'cx="{donut_cx}" '
-            f'cy="{donut_cy}" '
-            f'r="{donut_radius}" '
-            f'fill="none" '
-            f'stroke="{color}" '
-            f'stroke-width="{donut_stroke}" '
-            f'stroke-dasharray="{segment} {circumference - segment}" '
-            f'stroke-dashoffset="{-offset}" '
-            f'transform="rotate(-90 {donut_cx} {donut_cy})"/>'
-        )
-
-        offset += segment
-
-    body.extend([
-        txt(
-            donut_cx,
-            donut_cy - 2,
-            data.get("top_language", "N/A"),
-            12,
-            theme.text,
-            700,
-            "middle",
-        ),
-        txt(
-            donut_cx,
-            donut_cy + 16,
-            "Top language",
-            9,
-            theme.muted,
-            500,
-            "middle",
-        ),
-    ])
-
-    # Language legend.
-    for index, language in enumerate(languages):
-        legend_x = 210
-        legend_y = 254 + index * 27
-        color = language_colors[index % len(language_colors)]
-
-        body.extend([
-            (
-                f'<circle '
-                f'cx="{legend_x}" '
-                f'cy="{legend_y}" '
-                f'r="5" '
-                f'fill="{color}"/>'
-            ),
-            txt(
-                legend_x + 14,
-                legend_y + 4,
-                language.get("name", ""),
-                11,
-                theme.secondary,
-                600,
-            ),
-            txt(
-                548,
-                legend_y + 4,
-                f'{language.get("percentage", 0)}%',
-                11,
-                theme.muted,
-                600,
-                "end",
-            ),
-        ])
-
-    # Recent activity timeline.
-    if not activity:
-        body.append(
-            txt(
-                616,
-                94,
-                "No recent public activity found.",
-                13,
-                theme.secondary,
-            )
-        )
-    else:
-        activity_colors = [
-            theme.blue,
-            theme.green,
-            theme.violet,
-            theme.cyan,
-        ]
-
-        for index, item in enumerate(activity):
-            y = 94 + index * 88
-            color = activity_colors[index % len(activity_colors)]
-
-            body.append(
-                f'<circle cx="622" cy="{y}" r="8" fill="{color}"/>'
-            )
-
-            if index < len(activity) - 1:
-                body.append(
-                    f'<line '
-                    f'x1="622" y1="{y + 10}" '
-                    f'x2="622" y2="{y + 78}" '
-                    f'stroke="{theme.border}" '
-                    f'stroke-width="2"/>'
-                )
-
-            body.append(
-                txt(
-                    644,
-                    y + 4,
-                    item.get("action", ""),
-                    12,
-                    theme.text,
-                    700,
-                )
-            )
-
-
-            detail = item.get("detail", "").strip()
-
-            if detail:
-                if not detail.endswith((".", "!", "?")):
-                    detail += "."
-
-                # Short details stay at normal size.
-                if len(detail) <= 34:
-                    body.append(
-                        txt(
-                            644,
-                            y + 25,
-                            detail,
-                            10,
-                            theme.secondary,
-                        )
-                    )
-
-                # Medium details stay on one line with a slightly smaller font.
-                elif len(detail) <= 55:
-                    body.append(
-                        txt(
-                            644,
-                            y + 25,
-                            detail,
-                            8.5,
-                            theme.secondary,
-                        )
-                    )
-
-                # Longer details wrap naturally across two lines.
-                else:
-                    words = detail.split()
-                    lines: list[str] = []
-                    current_line = ""
-
-                    for word in words:
-                        candidate = f"{current_line} {word}".strip()
-
-                        if len(candidate) <= 42:
-                            current_line = candidate
-                        else:
-                            if current_line:
-                                lines.append(current_line)
-                            current_line = word
-
-                    if current_line:
-                        lines.append(current_line)
-
-                    for line_index, line in enumerate(lines[:2]):
-                        body.append(
-                            txt(
-                                644,
-                                y + 25 + line_index * 16,
-                                line,
-                                9,
-                                theme.secondary,
-                            )
-                        )
-
-
-
-            body.append(
-                txt(
-                    928,
-                    y + 4,
-                    relative_time(
-                        item.get("created_at", "")
-                    ),
-                    10,
-                    theme.muted,
-                    500,
-                    "end",
-                )
-            )
-
-    return render_svg(
-        width,
-        height,
-        gradients(theme, uid),
-        "\n".join(body),
-    )
-
-
-def generate_all_assets(
-    data: dict[str, Any],
-    assets_dir: Path,
-) -> None:
-    assets_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    for theme in (DARK, LIGHT):
-        (
-            assets_dir / f"intro_{theme.name}.svg"
-        ).write_text(
-            generate_intro(theme),
-            encoding="utf-8",
-        )
-
-        for key in FOCUS:
-            (
-                assets_dir / f"focus_{key}_{theme.name}.svg"
-            ).write_text(
-                generate_focus(theme, key),
-                encoding="utf-8",
-            )
-
-        for key in PROJECTS:
-            (
-                assets_dir / f"project_{key}_{theme.name}.svg"
-            ).write_text(
-                generate_project(theme, key),
-                encoding="utf-8",
-            )
-
-        (
-            assets_dir / f"insights_activity_{theme.name}.svg"
-        ).write_text(
-            generate_insights_activity(data, theme),
-            encoding="utf-8",
-        )
-
-    for path in assets_dir.glob("*.svg"):
-        ET.parse(path)
-
+    mx, my, mw, mg = 48, 104, 190, 13
+    for i, (v, label) in enumerate(metrics):
+        x = mx + i * (mw + mg)
+        b.append(rect(x, my, mw, 76, 12, t.surface, t.border, 1))
+        b.append(text(x + 18, my + 40, v, 30, t.text, weight=800, spacing=-0.6))
+        b.append(text(x + 18, my + 62, label, 11, t.faint, weight=600, font=MONO))
+
+    by = 210
+    b.append(text(48, by + 18, "SPEAKS", 10.5, t.faint, weight=700, font=MONO, spacing=1.4))
+    lx = 120
+    for i, lang in enumerate(data.get("language_distribution", [])[:7]):
+        name = lang["name"]
+        w = approx_width(name, 11.5, mono=True) + 34
+        if lx + w > W - 48:
+            break
+        b.append(rect(lx, by, w, 28, 14, t.surface, t.border, 1))
+        b.append(f'<circle cx="{lx + 14}" cy="{by + 14}" r="4" fill="{LANG_COLORS.get(name, t.faint)}"/>')
+        b.append(text(lx + 24, by + 18, name, 11.5, t.text if i == 0 else t.muted, weight=600, font=MONO))
+        lx += w + 8
+
+    gen = data.get("generated_at", "")[:10]
+    b.append(text(W - 48, 56, f"updated {gen}", 11, t.faint, anchor="end", font=MONO))
+    return frame(t, h, uid, "\n".join(b), label="Live GitHub stats")
+
+
+# --------------------------------------------------------------------------- #
+# Entry point (called by analyze_repos.py)
+# --------------------------------------------------------------------------- #
+
+
+def generate_all_assets(data: dict[str, Any], assets_dir: Path) -> None:
+    assets_dir = Path(assets_dir)
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    for t in (DARK, LIGHT):
+        out = {
+            f"hero_{t.name}.svg": generate_hero(t),
+            f"what_{t.name}.svg": generate_what(t),
+            f"facts_{t.name}.svg": generate_facts(t),
+            f"journey_{t.name}.svg": generate_journey(t),
+            f"stack_{t.name}.svg": generate_stack(t),
+            f"stats_{t.name}.svg": generate_stats(data, t),
+        }
+        for name, svg in out.items():
+            (assets_dir / name).write_text(svg, encoding="utf-8")
+
+
+if __name__ == "__main__":
+    # Local preview without hitting the API: python3 scripts/svg_assets.py
+    import json
+
+    root = Path(__file__).resolve().parent.parent
+    payload = json.loads((root / "data/repo_stats.json").read_text(encoding="utf-8"))
+    generate_all_assets(payload, root / "assets")
+    print("Rendered assets from cached data/repo_stats.json")
