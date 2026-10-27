@@ -10,7 +10,7 @@
 <p align="center">
   <a href="https://www.linkedin.com/in/mina-liu-114200/"><img src="https://img.shields.io/badge/LinkedIn-Mina_Liu-0A66C2?style=flat-square&logo=linkedin&logoColor=white" alt="LinkedIn"></a>
   <a href="https://www.datascienceportfol.io/mina"><img src="https://img.shields.io/badge/Portfolio-datascienceportfol.io-3DDC97?style=flat-square" alt="Portfolio"></a>
-  <a href="mailto:minazliu@gmail.com"><img src="https://img.shields.io/badge/Say_hi-minazliu@gmail.com-111419?style=flat-square&logo=gmail&logoColor=white" alt="Email"></a>
+  <a href="mailto:minazliu@stanford.edu"><img src="https://img.shields.io/badge/Say_hi-minazliu@stanford.edu-111419?style=flat-square&logo=gmail&logoColor=white" alt="Email"></a>
 </p>
 
 > **TL;DR** — I prototype with AI, explain it so anyone can follow, and drive it all the way to production. Half builder, half translator, fully allergic to slide decks that never ship.
