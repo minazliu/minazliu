@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-31T14:28:51.058740+00:00",
+  "generated_at": "2026-11-01T14:57:30.892901+00:00",
   "username": "minazliu",
   "repo_count": 17,
   "language_count": 6,
@@ -44,7 +44,7 @@
       "languages": {
         "Python": 35918
       },
-      "pushed_at": "2026-10-30T15:00:05Z"
+      "pushed_at": "2026-10-31T14:28:53Z"
     },
     {
       "name": "Edge-to-Cloud-IoT-Smoke-Sensing",
@@ -192,7 +192,7 @@
   "contributions": {
     "commits": 68,
     "longest_streak": 5,
-    "commits_current_month": 21
+    "commits_current_month": 0
   },
   "activity": [
     {
@@ -202,7 +202,7 @@
     },
     {
       "action": "Updated Edge-to-Cloud-IoT-Smoke-Sensing",
-      "detail": "20 commits this month \u00b7 Latest: Merge pull request #1 from minazliu/v2-structured-streaming",
+      "detail": "Repository updated",
       "created_at": "2026-10-27T02:45:28Z"
     },
     {
@@ -212,7 +212,7 @@
     },
     {
       "action": "Updated minazliu",
-      "detail": "1 commit this month \u00b7 Latest: Update README.md",
+      "detail": "Repository updated",
       "created_at": "2026-10-27T00:39:33Z"
     },
     {
